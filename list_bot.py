@@ -168,8 +168,8 @@ data_list = [
   ["Coin", "givemeygg", 26],
   ["Totem", "BONER_ALERT", 6],
   ["Jelly", "tarou9n", 7],
-  ["Crown", "SEALxSUMMONR", 32],
   ["Pincer", "Avril", 8],
+  ["Crown", "SEALxSUMMONR", 32],
 ]
 
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
@@ -207,7 +207,7 @@ class EphemeralListView(View):
     async def sort_name_btn_e(self, i: discord.Interaction, b: Button): await self._update_ephemeral_message(i, "sort_config_name")
     @button(label=SORT_CONFIGS["sort_config_cost"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_cost")
     async def sort_cost_btn_e(self, i: discord.Interaction, b: Button): await self._update_ephemeral_message(i, "sort_config_cost")
-    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_recent")
+    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_recent")
     async def sort_recent_btn_e(self, i: discord.Interaction, b: Button): await self._update_ephemeral_message(i, "sort_config_recent")
     # NEW EPHEMERAL BUTTON
     @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_owner")
@@ -616,7 +616,8 @@ async def on_ready():
             print(f"INFO: Channel {cid} has stored message IDs {msg_ids}. It will be handled by update_all_persistent_list_prompts.")
         
     print("Ensuring persistent list prompts are up-to-date or posted.")
-    await update_all_persistent_list_prompts(force_new=True) 
+    # FIX: Changed force_new to False to prevent duplicate lists on bot restart
+    await update_all_persistent_list_prompts(force_new=False) 
 
 @client.event
 async def on_message(m: discord.Message):
