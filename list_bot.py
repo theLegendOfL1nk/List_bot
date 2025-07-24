@@ -168,8 +168,8 @@ data_list = [
   ["Coin", "givemeygg", 26],
   ["Totem", "BONER_ALERT", 6],
   ["Jelly", "tarou9n", 7],
-  ["Pincer", "Avril", 8],
   ["Crown", "SEALxSUMMONR", 32],
+  ["Pincer", "Avril", 8],
 ]
 
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
@@ -612,29 +612,8 @@ async def on_ready():
         msg_ids = state.get("message_ids", []) # Now a list of message IDs
         
         # Simplified on_ready: Does not attempt to re-attach views from previous session by default.
-        # If you had persistent storage for message_ids, you would load them here and then attempt to re-attach.
         if msg_ids:
-            # This code path is for if you *did* have a way to load old message_ids
-            # For example, if you saved channel_list_states to a file and loaded it.
-            # Since we don't do that here, msg_ids will usually be an empty list for a fresh bot start.
             print(f"INFO: Channel {cid} has stored message IDs {msg_ids}. It will be handled by update_all_persistent_list_prompts.")
-            # For robust view persistence:
-            # try:
-            #    chan = await client.fetch_channel(cid)
-            #    for msg_id in msg_ids:
-            #        if msg_id: # Check if message_id is not None
-            #            try:
-            #                await chan.fetch_message(msg_id) 
-            #                view = PersistentListPromptView(target_channel_id=cid)
-            #                client.add_view(view, message_id=msg_id) # Re-attach
-            #                print(f"Re-added PersistentListPromptView to msg {msg_id} in chan {cid}")
-            #            except (discord.NotFound, discord.Forbidden, AttributeError):
-            #                # If a message is not found or forbidden, remove it from the list
-            #                print(f"Message {msg_id} not found or forbidden in channel {cid}. Removing it from state.")
-            #                state["message_ids"].remove(msg_id)
-            # except Exception as e:
-            #    print(f"Err re-adding views for channel {cid}: {e}")
-            #    state["message_ids"] = [] # Clear if a broader error occurs
         
     print("Ensuring persistent list prompts are up-to-date or posted.")
     await update_all_persistent_list_prompts(force_new=True) 
@@ -669,21 +648,34 @@ async def on_message(m: discord.Message):
 # NEW: Define the async web server function
 async def web_server():
     app = aiohttp.web.Application()
-    # This endpoint simply responds with "Bot is running!" to any GET request to the root URL
     app.router.add_get("/", lambda r: aiohttp.web.Response(text="Bot is running!"))
     runner = aiohttp.web.AppRunner(app)
     await runner.setup()
-    # Render will set the PORT environment variable; if not set, default to 8080
-    site = aiohttp.web.TCPSite(runner, '0.0.0.0', os.environ.get("PORT", 8080))
+    # Use the PORT environment variable provided by Render, defaulting to 8080 if not set (unlikely on Render)
+    port = int(os.environ.get("PORT", 8080))
+    site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"Web server started on port {os.environ.get('PORT', 8080)}")
+    print(f"Web server started on port {port}")
+
+# NEW: Main async function to run both the bot and the web server
+async def main():
+    if not BOT_TOKEN:
+        print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
+        return # Exit if no token
+
+    # Create tasks for both the web server and the Discord bot
+    web_task = asyncio.create_task(web_server())
+    bot_task = asyncio.create_task(client.start(BOT_TOKEN)) # Use client.start() instead of client.run()
+
+    # Wait for both tasks to complete. This will keep the application running indefinitely.
+    await asyncio.gather(web_task, bot_task)
 
 
 if __name__ == "__main__":
-    if not BOT_TOKEN: # Check if BOT_TOKEN is loaded (it will be None if env var isn't set)
-        print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
-    else:
-        # Start both the web server and the Discord bot concurrently
-        loop = asyncio.get_event_loop()
-        loop.create_task(web_server()) # Start the web server as a background task
-        client.run(BOT_TOKEN) # Start the Discord bot (this is blocking, so web server needs to be a task)
+    try:
+        # Use asyncio.run() to run the main async function
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot and web server stopped.")
+    except Exception as e:
+        print(f"An error occurred during startup: {e}")
