@@ -6,9 +6,10 @@ import asyncio
 from discord.ui import View, Button, button
 from discord.enums import ButtonStyle
 from collections import Counter # Import Counter for the new sort
+import aiohttp.web # NEW: Import aiohttp.web for the web server
 
 # --- CONFIGURATION ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = os.environ.get("BOT_TOKEN") # MODIFIED: Reads from environment variable
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
@@ -22,7 +23,7 @@ MANUAL_ADD_COMMAND_PREFIX = "list.bot add"
 CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
-SAY_COMMAND_PREFIX = "list.bot say"
+SAY_COMMAND_PREFIX = "list.bot say" # Added this from your code
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -167,8 +168,8 @@ data_list = [
   ["Coin", "givemeygg", 26],
   ["Totem", "BONER_ALERT", 6],
   ["Jelly", "tarou9n", 7],
-  ["Crown", "Fiona_UwU", 31],
   ["Pincer", "Avril", 8],
+  ["Crown", "SEALxSUMMONR", 32],
 ]
 
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
@@ -336,8 +337,8 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
             return [f"{empty_msg}\n{timestamp_line}"]
         
         formatted_text_parts = format_list_for_display(processed_data, 
-                                                 sort_details["column_order_indices"], 
-                                                 sort_details["headers"])
+                                                       sort_details["column_order_indices"], 
+                                                       sort_details["headers"])
     else:
         if not list_data_source: 
             timestamp_line = f"<t:{int(time.time())}:R> (List is Empty)"
@@ -348,8 +349,8 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
             return [f"The list is currently empty (or filter produced no results).\n{timestamp_line}"]
         
         formatted_text_parts = format_list_for_display(processed_data, 
-                                                 sort_details["column_order_indices"], 
-                                                 sort_details["headers"])
+                                                       sort_details["column_order_indices"], 
+                                                       sort_details["headers"])
     
     final_message_parts = []
     ts_msg_base = f"(Sorted {sort_details['label']})"
@@ -605,7 +606,7 @@ async def on_ready():
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
         if cid == 0 or not isinstance(cid, int): continue
         if cid not in channel_list_states: 
-             channel_list_states[cid] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
+            channel_list_states[cid] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
         
         state = channel_list_states[cid]
         msg_ids = state.get("message_ids", []) # Now a list of message IDs
@@ -619,22 +620,22 @@ async def on_ready():
             print(f"INFO: Channel {cid} has stored message IDs {msg_ids}. It will be handled by update_all_persistent_list_prompts.")
             # For robust view persistence:
             # try:
-            #     chan = await client.fetch_channel(cid)
-            #     for msg_id in msg_ids:
-            #         if msg_id: # Check if message_id is not None
-            #             try:
-            #                 await chan.fetch_message(msg_id) 
-            #                 view = PersistentListPromptView(target_channel_id=cid)
-            #                 client.add_view(view, message_id=msg_id) # Re-attach
-            #                 print(f"Re-added PersistentListPromptView to msg {msg_id} in chan {cid}")
-            #             except (discord.NotFound, discord.Forbidden, AttributeError):
-            #                 # If a message is not found or forbidden, remove it from the list
-            #                 print(f"Message {msg_id} not found or forbidden in channel {cid}. Removing it from state.")
-            #                 state["message_ids"].remove(msg_id)
+            #    chan = await client.fetch_channel(cid)
+            #    for msg_id in msg_ids:
+            #        if msg_id: # Check if message_id is not None
+            #            try:
+            #                await chan.fetch_message(msg_id) 
+            #                view = PersistentListPromptView(target_channel_id=cid)
+            #                client.add_view(view, message_id=msg_id) # Re-attach
+            #                print(f"Re-added PersistentListPromptView to msg {msg_id} in chan {cid}")
+            #            except (discord.NotFound, discord.Forbidden, AttributeError):
+            #                # If a message is not found or forbidden, remove it from the list
+            #                print(f"Message {msg_id} not found or forbidden in channel {cid}. Removing it from state.")
+            #                state["message_ids"].remove(msg_id)
             # except Exception as e:
-            #     print(f"Err re-adding views for channel {cid}: {e}")
-            #     state["message_ids"] = [] # Clear if a broader error occurs
-    
+            #    print(f"Err re-adding views for channel {cid}: {e}")
+            #    state["message_ids"] = [] # Clear if a broader error occurs
+        
     print("Ensuring persistent list prompts are up-to-date or posted.")
     await update_all_persistent_list_prompts(force_new=True) 
 
@@ -651,9 +652,8 @@ async def on_message(m: discord.Message):
         if content_lower_stripped == ANNOUNCE_COMMAND.lower(): await handle_announce_command(m); return
         if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()): await handle_manual_add_command(m); return
         if content_lower_stripped.startswith(DELETE_COMMAND_PREFIX.lower()): await handle_delete_command(m); return
-        # NEW COMMAND CHECK
-        if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()): await handle_say_command(m); return
-    
+        if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()): await handle_say_command(m); return # Added this line
+
     if m.author.id==TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match=AUTO_UPDATE_MESSAGE_REGEX.search(m.content) 
         if match:
@@ -666,10 +666,24 @@ async def on_message(m: discord.Message):
         # else:
             # print(f"DEBUG: Message from target bot {m.author.id} did not match regex: '{m.content[:100]}'")
 
-if __name__=="__main__":
-    if BOT_TOKEN=="YOUR_BOT_TOKEN_HERE": print("ERROR: Set VALID BOT_TOKEN.")
+# NEW: Define the async web server function
+async def web_server():
+    app = aiohttp.web.Application()
+    # This endpoint simply responds with "Bot is running!" to any GET request to the root URL
+    app.router.add_get("/", lambda r: aiohttp.web.Response(text="Bot is running!"))
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    # Render will set the PORT environment variable; if not set, default to 8080
+    site = aiohttp.web.TCPSite(runner, '0.0.0.0', os.environ.get("PORT", 8080))
+    await site.start()
+    print(f"Web server started on port {os.environ.get('PORT', 8080)}")
+
+
+if __name__ == "__main__":
+    if not BOT_TOKEN: # Check if BOT_TOKEN is loaded (it will be None if env var isn't set)
+        print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
     else:
-        try: client.run(BOT_TOKEN)
-        except discord.LoginFailure: print("LOGIN FAILED: BOT_TOKEN invalid.")
-        except discord.PrivilegedIntentsRequired as e: print(f"ERROR: PrivilegedIntentsRequired: {e}.")
-        except Exception as e: print(f"Unexpected error running bot: {e}")
+        # Start both the web server and the Discord bot concurrently
+        loop = asyncio.get_event_loop()
+        loop.create_task(web_server()) # Start the web server as a background task
+        client.run(BOT_TOKEN) # Start the Discord bot (this is blocking, so web server needs to be a task)
