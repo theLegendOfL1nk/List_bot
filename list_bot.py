@@ -715,4 +715,113 @@ async def send_custom_update_notifications(item_val, name_val, cost_val):
             mentions = discord.AllowedMentions.none()
             if rid and rid != 0 and p_str:
                 mentions.roles = [discord.Object(id=rid)]
-            await chan.send(content, allowed_mentions=mentions
+            await chan.send(content, allowed_mentions=mentions)
+        except Exception as e:
+            print(f"Notify Err: Failed to send to {cid}: {e}")
+        await asyncio.sleep(0.5)
+
+
+last_on_ready_timestamp = 0
+
+
+@client.event
+async def on_ready():
+    global last_on_ready_timestamp
+
+    current_time = time.time()
+    if current_time - last_on_ready_timestamp < 60:
+        print("Bot restarted too quickly. Skipping a full list update to prevent API rate limit issues.")
+        return
+
+    last_on_ready_timestamp = current_time
+
+    print(f'{client.user.name} ({client.user.id}) connected!')
+    print("Loading data from file...")
+    load_data_list()
+    print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
+    print(f'Admins: {ADMIN_USER_IDS}')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}"')
+
+    print("Initializing channel states for persistent views...")
+    for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
+        if cid == 0 or not isinstance(cid, int):
+            continue
+        if cid not in channel_list_states:
+            channel_list_states[cid] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
+        state = channel_list_states[cid]
+        msg_ids = state.get("message_ids", [])
+        if msg_ids:
+            print(f"INFO: Channel {cid} has stored message IDs {msg_ids}. It will be handled by update_all_persistent_list_prompts.")
+
+    print("Ensuring persistent list prompts are up-to-date or posted.")
+    await update_all_persistent_list_prompts(force_new=False)
+
+
+@client.event
+async def on_message(m: discord.Message):
+    if m.author == client.user or (m.author.bot and m.author.id != TARGET_BOT_ID_FOR_AUTO_UPDATES):
+        return
+
+    is_admin = m.author.id in ADMIN_USER_IDS
+    content_lower_stripped = m.content.strip().lower()
+
+    if is_admin:
+        if content_lower_stripped == RESTART_COMMAND.lower():
+            await handle_restart_command(m)
+            return
+        if content_lower_stripped == CLOSE_LISTS_COMMAND.lower():
+            await handle_close_lists_command(m)
+            return
+        if content_lower_stripped == ANNOUNCE_COMMAND.lower():
+            await handle_announce_command(m)
+            return
+        if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()):
+            await handle_manual_add_command(m)
+            return
+        if content_lower_stripped.startswith(DELETE_COMMAND_PREFIX.lower()):
+            await handle_delete_command(m)
+            return
+        if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()):
+            await handle_say_command(m)
+            return
+
+    if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
+        match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
+        if match:
+            item_val, name_val = match.group(1).strip(), match.group(2).strip()
+            print(f"AutoUpd from {m.author.id}: Item='{item_val}',Name='{name_val}'")
+            updated_cost = update_data_for_auto(item_val, name_val)
+            await update_all_persistent_list_prompts(force_new=False)
+            await send_custom_update_notifications(item_val, name_val, updated_cost)
+            return
+
+
+async def web_server():
+    app = aiohttp.web.Application()
+    app.router.add_get("/", lambda r: aiohttp.web.Response(text="Bot is running!"))
+    runner = aiohttp.web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    print(f"Web server started on port {port}")
+
+
+async def main():
+    if not BOT_TOKEN:
+        print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
+        return
+
+    web_task = asyncio.create_task(web_server())
+    bot_task = asyncio.create_task(client.start(BOT_TOKEN))
+
+    await asyncio.gather(web_task, bot_task)
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot and web server stopped.")
+    except Exception as e:
+        print(f"An error occurred during startup: {e}")
