@@ -349,25 +349,46 @@ def update_data_for_auto(item_val, name_val):
 def format_list_for_display(data, col_indices, headers):
     if not data:
         return []
-    disp_data = [[str(r[i]) for i in col_indices] for r in data]
-    widths = [len(h) for h in headers]
-    for r_disp in disp_data:
-        for i, v_disp in enumerate(r_disp):
-            widths[i] = max(widths[i], len(v_disp))
 
-    header_line = "  ".join(f"{headers[i]:<{widths[i]}}" for i in range(len(headers)))
+    # Calculate max widths for each column based on headers and data
+    widths = [len(h) for h in headers]
+    for r in data:
+        disp_row = [str(r[i]) for i in col_indices]
+        for i, val in enumerate(disp_row):
+            widths[i] = max(widths[i], len(val))
+
+    # Calculate padding for each column.
+    # We use a small amount of padding to save space.
+    padding = [2] * len(widths)
+    # The total line length is the sum of widths and padding
+    total_line_length = sum(widths) + sum(padding) - padding[-1]
+
+    # Dynamically adjust formatting if the line length is too large
+    if total_line_length > MAX_MESSAGE_LENGTH - 50:
+        padding = [1] * len(widths)
+        total_line_length = sum(widths) + sum(padding) - padding[-1]
+    
+    # Create the header line
+    header_line = " ".join(f"{headers[i]:<{widths[i]}}" for i in range(len(headers)))
 
     message_parts = []
     current_part_lines = [header_line]
+    current_length = len(header_line)
 
-    for r_disp in disp_data:
-        line = "  ".join(f"{r_disp[i]:<{widths[i]}}" for i in range(len(r_disp)))
-        if sum(len(l) + 1 for l in current_part_lines) + len(line) + 1 + 6 > MAX_MESSAGE_LENGTH:
+    for row in data:
+        disp_row = [str(row[i]) for i in col_indices]
+        line = " ".join(f"{disp_row[i]:<{widths[i]}}" for i in range(len(headers)))
+        
+        # Check if adding the new line will exceed the max length
+        # We also need to account for the code block, timestamp, etc.
+        if current_length + len(line) + 1 + 100 > MAX_MESSAGE_LENGTH:
             message_parts.append("\n".join(current_part_lines))
             current_part_lines = [header_line, line]
+            current_length = len(header_line) + len(line) + 1
         else:
             current_part_lines.append(line)
-
+            current_length += len(line) + 1
+    
     if current_part_lines:
         message_parts.append("\n".join(current_part_lines))
 
