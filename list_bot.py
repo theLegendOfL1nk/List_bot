@@ -249,4 +249,470 @@ class EphemeralListView(View):
     async def sort_recent_btn_e(self, i: discord.Interaction, b: Button):
         await self._update_ephemeral_message(i, "sort_config_recent")
 
-    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.secondary, custom_
+    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_owner")
+    async def sort_owner_btn_e(self, i: discord.Interaction, b: Button):
+        await self._update_ephemeral_message(i, "sort_config_owner")
+
+    async def on_timeout(self):
+        print(f"EphemeralListView for sort {self.current_sort_key} timed out.")
+
+
+class PersistentListPromptView(View):
+    def __init__(self, target_channel_id: int, timeout=None):
+        super().__init__(timeout=timeout)
+        self.target_channel_id = target_channel_id
+
+    async def _send_ephemeral_sorted_list(self, interaction: discord.Interaction, sort_key: str):
+        print(f"User {interaction.user.name} (ID: {interaction.user.id}) requested sorted list ('{sort_key}') ephemerally in channel <#{interaction.channel_id}>.")
+        if EPHEMERAL_REQUEST_LOG_CHANNEL_ID and EPHEMERAL_REQUEST_LOG_CHANNEL_ID != 0:
+            log_channel = client.get_channel(EPHEMERAL_REQUEST_LOG_CHANNEL_ID)
+            if log_channel:
+                try:
+                    log_message = (
+                        f"📋 Ephemeral list generated:\n"
+                        f"▫️ **User:** {interaction.user.mention} (`{interaction.user.name}#{interaction.user.discriminator}` - ID: `{interaction.user.id}`)\n"
+                        f"▫️ **Requested Sort:** `{SORT_CONFIGS[sort_key]['label']}` (Key: `{sort_key}`)\n"
+                        f"▫️ **Interaction Channel:** <#{interaction.channel_id}> (Prompt in channel ID: `{self.target_channel_id}`)"
+                    )
+                    await log_channel.send(log_message)
+                except discord.Forbidden:
+                    print(f"Log Error: No permission to send messages in log channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}.")
+                except Exception as e:
+                    print(f"Log Error: Failed to send log to channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}: {e}")
+            else:
+                print(f"Log Error: Ephemeral request log channel ID {EPHEMERAL_REQUEST_LOG_CHANNEL_ID} not found.")
+
+        full_content_parts = format_sorted_list_content(sort_key, is_ephemeral=True)
+        ephemeral_view = EphemeralListView(initial_sort_key=sort_key)
+        try:
+            content_to_send = full_content_parts[0] if isinstance(full_content_parts, list) else full_content_parts
+            await interaction.response.send_message(content=content_to_send, view=ephemeral_view, ephemeral=True)
+        except Exception as e:
+            print(f"Failed to send ephemeral sorted list to {interaction.user.name}: {e}")
+            try:
+                await interaction.followup.send("Sorry, I couldn't generate your list view at this time.", ephemeral=True)
+            except:
+                pass
+
+    @button(label=SORT_CONFIGS["sort_config_item"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_item")
+    async def sort_item_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_item")
+
+    @button(label=SORT_CONFIGS["sort_config_name"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_name")
+    async def sort_name_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_name")
+
+    @button(label=SORT_CONFIGS["sort_config_cost"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_cost")
+    async def sort_cost_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_cost")
+
+    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_recent")
+    async def sort_recent_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_recent")
+
+    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_owner")
+    async def sort_owner_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_owner")
+
+    async def on_timeout(self):
+        print(f"PersistentListPromptView for channel {self.target_channel_id} supposedly timed out.")
+
+def _update_last_changed_details(item_val, name_val, cost_val):
+    global last_updated_item_details
+    last_updated_item_details = {"item_val": item_val, "name_val": name_val, "cost_val": cost_val}
+
+def update_data_for_auto(item_val, name_val):
+    global data_list
+    found_idx = -1
+    final_cost = "6"
+    for i, row in enumerate(data_list):
+        if row[0].lower() == item_val.lower():
+            found_idx = i
+            break
+    if found_idx != -1:
+        existing_row = data_list.pop(found_idx)
+        existing_row[1] = name_val
+        try:
+            final_cost = str(int(existing_row[2]) + 1)
+        except ValueError:
+            final_cost = "1"
+        existing_row[2] = final_cost
+        data_list.append(existing_row)
+    else:
+        new_row = [item_val, name_val, final_cost]
+        data_list.append(new_row)
+    _update_last_changed_details(item_val, name_val, final_cost)
+    save_data_list()
+    print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
+    return final_cost
+
+def format_list_for_display(data, col_indices, headers):
+    if not data:
+        return []
+    disp_data = [[str(r[i]) for i in col_indices] for r in data]
+    widths = [len(h) for h in headers]
+    for r_disp in disp_data:
+        for i, v_disp in enumerate(r_disp):
+            widths[i] = max(widths[i], len(v_disp))
+
+    header_line = "  ".join(f"{headers[i]:<{widths[i]}}" for i in range(len(headers)))
+
+    message_parts = []
+    current_part_lines = [header_line]
+
+    for r_disp in disp_data:
+        line = "  ".join(f"{r_disp[i]:<{widths[i]}}" for i in range(len(r_disp)))
+        if sum(len(l) + 1 for l in current_part_lines) + len(line) + 1 + 6 > MAX_MESSAGE_LENGTH:
+            message_parts.append("\n".join(current_part_lines))
+            current_part_lines = [header_line, line]
+        else:
+            current_part_lines.append(line)
+
+    if current_part_lines:
+        message_parts.append("\n".join(current_part_lines))
+
+    return message_parts
+
+def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
+    sort_details = SORT_CONFIGS[sort_key]
+    list_data_source = data_list
+    processed_data = []
+
+    if sort_key == "sort_config_recent":
+        processed_data = list_data_source[-MAX_RECENT_ITEMS_TO_SHOW:]
+        if not processed_data and list_data_source:
+            processed_data = list_data_source
+        elif not processed_data and not list_data_source:
+            empty_msg = "No recent changes, and the list is empty." if is_ephemeral else "The list is currently empty."
+            timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
+            return [f"{empty_msg}\n{timestamp_line}"]
+        if not processed_data:
+            empty_msg = "No recent changes to display." if is_ephemeral else "The list is currently empty, so no recent changes."
+            timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
+            return [f"{empty_msg}\n{timestamp_line}"]
+
+        formatted_text_parts = format_list_for_display(processed_data,
+                                                       sort_details["column_order_indices"],
+                                                       sort_details["headers"])
+    else:
+        if not list_data_source:
+            timestamp_line = f"<t:{int(time.time())}:R> (List is Empty)"
+            return [f"The list is currently empty.\n{timestamp_line}"]
+        processed_data = sort_details["sort_lambda"](list_data_source)
+        if not processed_data:
+            timestamp_line = f"<t:{int(time.time())}:R> (List is Empty or Filter Produced No Results)"
+            return [f"The list is currently empty (or filter produced no results).\n{timestamp_line}"]
+
+        formatted_text_parts = format_list_for_display(processed_data,
+                                                       sort_details["column_order_indices"],
+                                                       sort_details["headers"])
+
+    final_message_parts = []
+    ts_msg_base = f"(Sorted {sort_details['label']})"
+    code_block_overhead = 8  # "```\n" at start, "\n```" at end
+
+    for i, part in enumerate(formatted_text_parts):
+        part_header = ""
+        if len(formatted_text_parts) > 1:
+            part_header = f"Part {i+1}/{len(formatted_text_parts)} - "
+
+        timestamp_line = f"<t:{int(time.time())}:R> {part_header}{ts_msg_base}"
+        # Recalculate content length, leaving space for the timestamp and code block
+        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
+        if content_length_with_meta > MAX_MESSAGE_LENGTH:
+            # If a part is still too big, we need to be more aggressive
+            # This is a fallback that should ideally never be hit
+            final_message_parts.append(f"List is too large to display. Please contact an admin.")
+            print(f"Warning: A list part exceeded max length. Length: {content_length_with_meta}")
+            break
+
+        final_message_parts.append(f"{timestamp_line}\n```\n{part}\n```")
+
+    return final_message_parts if final_message_parts else ["The list is currently empty."]
+
+
+async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new: bool = False):
+    global channel_list_states
+    if target_channel_id not in channel_list_states:
+        channel_list_states[target_channel_id] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
+
+    state = channel_list_states[target_channel_id]
+    msg_ids = state.get("message_ids", [])
+    default_sort = state.get("default_sort_key_for_display", DEFAULT_PERSISTENT_SORT_KEY)
+
+    channel = client.get_channel(target_channel_id)
+    if not channel:
+        state["message_ids"] = []
+        return
+
+    content_parts = format_sorted_list_content(default_sort, is_ephemeral=False)
+    view = PersistentListPromptView(target_channel_id=target_channel_id)
+
+    if force_new or len(msg_ids) != len(content_parts):
+        for msg_id in msg_ids:
+            try:
+                old_msg = await channel.fetch_message(msg_id)
+                await old_msg.delete()
+            except:
+                pass
+            if msg_id in view_message_tracker:
+                del view_message_tracker[msg_id]
+        state["message_ids"] = []
+        msg_ids = []
+
+    sent_messages = []
+    for i, content in enumerate(content_parts):
+        if i < len(msg_ids):
+            try:
+                m = await channel.fetch_message(msg_ids[i])
+                if i == 0:
+                    await m.edit(content=content, view=view)
+                    view_message_tracker[m.id] = ("PersistentListPromptView", target_channel_id)
+                else:
+                    await m.edit(content=content, view=None)
+                sent_messages.append(m.id)
+            except discord.NotFound:
+                new_m = None
+                if i == 0:
+                    new_m = await channel.send(content=content, view=view)
+                    view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                else:
+                    new_m = await channel.send(content=content, view=None)
+                sent_messages.append(new_m.id)
+            except Exception as e:
+                print(f"Error editing/sending part {i} of persistent prompt in {target_channel_id}: {e}")
+                try:
+                    new_m = None
+                    if i == 0:
+                        new_m = await channel.send(content=content, view=view)
+                        view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                    else:
+                        new_m = await channel.send(content=content, view=None)
+                    sent_messages.append(new_m.id)
+                except Exception as e2:
+                    print(f"Critical: Failed to send new message for part {i} in {target_channel_id}: {e2}")
+        else:
+            try:
+                new_m = None
+                if i == 0 and not msg_ids:
+                    new_m = await channel.send(content=content, view=view)
+                    view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                else:
+                    new_m = await channel.send(content=content, view=None)
+                sent_messages.append(new_m.id)
+            except Exception as e:
+                print(f"Error sending new part {i} of persistent prompt to {target_channel_id}: {e}")
+
+        await asyncio.sleep(0.5)
+
+    for old_msg_id in msg_ids[len(content_parts):]:
+        try:
+            old_msg = await channel.fetch_message(old_msg_id)
+            await old_msg.delete()
+        except:
+            pass
+        if old_msg_id in view_message_tracker:
+            del view_message_tracker[old_msg_id]
+
+    state["message_ids"] = sent_messages
+
+
+async def update_all_persistent_list_prompts(force_new: bool = False):
+    for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
+        if cid and isinstance(cid, int):
+            await send_or_edit_persistent_list_prompt(cid, force_new)
+        await asyncio.sleep(1)
+
+
+async def clear_all_persistent_list_prompts():
+    for cid in list(channel_list_states.keys()):
+        state = channel_list_states[cid]
+        msg_ids = state.get("message_ids", [])
+        for msg_id in msg_ids:
+            if not msg_id:
+                continue
+            channel = client.get_channel(cid)
+            if not channel:
+                state["message_ids"] = []
+                continue
+            try:
+                m = await channel.fetch_message(msg_id)
+                await m.delete()
+            except:
+                pass
+            if msg_id in view_message_tracker:
+                del view_message_tracker[msg_id]
+            await asyncio.sleep(0.5)
+        state["message_ids"] = []
+
+
+async def handle_restart_command(m: discord.Message):
+    try:
+        await m.add_reaction("🔄")
+        await clear_all_persistent_list_prompts()
+    except:
+        pass
+    await update_all_persistent_list_prompts(force_new=True)
+    try:
+        await m.add_reaction("✅")
+    except:
+        pass
+
+
+async def handle_manual_add_command(m: discord.Message):
+    parts = m.content[len(MANUAL_ADD_COMMAND_PREFIX):].strip()
+    match = re.fullmatch(r"\"([^\"]+)\"\s+\"([^\"]+)\"(?:\s+(\d+))?", parts)
+    if not match:
+        await m.channel.send(f"Format: `{MANUAL_ADD_COMMAND_PREFIX} \"Item\" \"Name\" [Cost]`")
+        return
+
+    item_in, name_in, cost_s = match.group(1), match.group(2), match.group(3)
+    global data_list
+    found_idx = -1
+    resp = ""
+    final_cost = "6"
+
+    for i, r in enumerate(data_list):
+        if r[0].lower() == item_in.lower():
+            found_idx = i
+            break
+
+    if found_idx != -1:
+        row_to_update = data_list.pop(found_idx)
+        row_to_update[1] = name_in
+        if cost_s:
+            final_cost = cost_s
+        else:
+            try:
+                final_cost = str(int(row_to_update[2]) + 1)
+            except:
+                final_cost = "1"
+        row_to_update[2] = final_cost
+        data_list.append(row_to_update)
+        resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
+    else:
+        final_cost = cost_s if cost_s else "6"
+        new_row = [item_in, name_in, final_cost]
+        data_list.append(new_row)
+        resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
+    _update_last_changed_details(item_in, name_in, final_cost)
+    save_data_list()
+    await m.channel.send(resp)
+    await update_all_persistent_list_prompts()
+
+
+async def handle_delete_command(message: discord.Message):
+    parts_str = message.content[len(DELETE_COMMAND_PREFIX):].strip()
+    if not (parts_str.startswith('"') and parts_str.endswith('"')):
+        await message.channel.send(f"Format: `{DELETE_COMMAND_PREFIX} \"Item Name\"`")
+        return
+    item_to_delete = parts_str[1:-1]
+    global data_list
+    original_len = len(data_list)
+    data_list = [r for r in data_list if r[0].lower() != item_to_delete.lower()]
+    if len(data_list) < original_len:
+        await message.channel.send(f"Item '{item_to_delete}' deleted.")
+        if last_updated_item_details.get("item_val") and \
+           last_updated_item_details["item_val"].lower() == item_to_delete.lower():
+            _update_last_changed_details(None, None, None)
+        save_data_list()
+        await update_all_persistent_list_prompts()
+    else:
+        await message.channel.send(f"Item '{item_to_delete}' not found.")
+
+
+async def handle_announce_command(message: discord.Message):
+    item, name, cost = last_updated_item_details.get("item_val"), last_updated_item_details.get("name_val"), last_updated_item_details.get("cost_val")
+    if item and name and cost is not None:
+        await send_custom_update_notifications(item, name, cost)
+        await message.channel.send(f"Announcement: Item: {item}, Name: {name}, Cost: {cost}.")
+        try:
+            await message.add_reaction("📢")
+        except:
+            pass
+    else:
+        await message.channel.send("No recent update (with cost) to announce.")
+
+
+async def handle_say_command(message: discord.Message):
+    match = re.match(rf"{re.escape(SAY_COMMAND_PREFIX)}\s*\"([^\"]*)\"$", message.content.strip(), re.IGNORECASE)
+    if not match:
+        await message.channel.send(f"Format: `{SAY_COMMAND_PREFIX} \"Your message here\"`")
+        return
+
+    message_to_say = match.group(1).strip()
+
+    if not message_to_say:
+        await message.channel.send("Please provide a message to say.")
+        return
+
+    print(f"Admin {message.author.name} (ID: {message.author.id}) requested to say: '{message_to_say}'")
+
+    sent_to_channels = []
+    for cfg in UPDATE_NOTIFICATION_CONFIG:
+        cid = cfg.get("channel_id")
+        if not cid or cid == 0:
+            continue
+        chan = client.get_channel(cid)
+        if not chan:
+            print(f"Say Command Err: Channel {cid} not found for saying message.")
+            continue
+
+        try:
+            await chan.send(message_to_say)
+            sent_to_channels.append(chan.name if hasattr(chan, 'name') else str(cid))
+        except Exception as e:
+            print(f"Say Command Err: Failed to send message to channel {cid}: {e}")
+        await asyncio.sleep(0.5)
+
+    if sent_to_channels:
+        await message.channel.send(f"Your message was sent to: {', '.join(sent_to_channels)}.")
+        try:
+            await message.add_reaction("✅")
+        except:
+            pass
+    else:
+        await message.channel.send("Could not send your message to any configured channels.")
+        try:
+            await message.add_reaction("❌")
+        except:
+            pass
+
+
+async def handle_close_lists_command(m: discord.Message):
+    try:
+        await m.add_reaction("🗑️")
+        await clear_all_persistent_list_prompts()
+    except:
+        pass
+    try:
+        await m.channel.send("All list displays cleared.")
+        await m.add_reaction("✅")
+    except:
+        pass
+
+
+async def send_custom_update_notifications(item_val, name_val, cost_val):
+    print(f"Notifications for: Item '{item_val}', Name '{name_val}', Cost '{cost_val}'")
+    for cfg in UPDATE_NOTIFICATION_CONFIG:
+        cid, fmt, rid = cfg.get("channel_id"), cfg.get("message_format"), cfg.get("role_id_to_ping")
+        if not cid or not fmt or cid == 0:
+            continue
+        chan = client.get_channel(cid)
+        if not chan:
+            print(f"Notify Err: Chan {cid} not found.")
+            continue
+        p_str = ""
+        if rid and rid != 0 and chan.guild:
+            role = chan.guild.get_role(rid)
+            p_str = role.mention if role else ""
+        try:
+            content = fmt.format(item_val=item_val, name_val=name_val, cost_val=cost_val, role_ping=p_str)
+        except KeyError as e:
+            print(f"Notify Err: Placeholder {e} invalid. Use {{item_val}}, {{name_val}}, {{cost_val}}.")
+            continue
+        try:
+            mentions = discord.AllowedMentions.none()
+            if rid and rid != 0 and p_str:
+                mentions.roles = [discord.Object(id=rid)]
+            await chan.send(content, allowed_mentions=mentions
