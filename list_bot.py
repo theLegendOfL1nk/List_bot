@@ -98,7 +98,7 @@ INITIAL_DATA_LIST = [
   ["Pharaoh's Crown", "FuGang", 42],
   ["Poo", "gainer", 15],
   ["Wing", "gainer", 25],
-  ["Talisman of Evasion", "gainer", 9]
+  ["Talisman of Evasion", "gainer", 9],
   ["Glass", "-Sam8375", 22],
   ["Light Bulb", "BaiLin2", 8],
 ]
