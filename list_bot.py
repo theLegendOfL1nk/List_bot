@@ -17,7 +17,7 @@ TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
 ADMIN_USER_IDS = [
     YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
-    934249510127935529, 504748495933145103, 1095468010564767796
+    934249510127935529, 504748495933145103, 1095468010564767796, 1027228794592952441
 ]
 
 RESTART_COMMAND = "list.bot restart"
@@ -45,7 +45,6 @@ MAX_MESSAGE_LENGTH = 1900
 
 # This list has been updated with the values from the provided logs.
 INITIAL_DATA_LIST = [
-[
   ["Corruption", "Pehiley", 6],
   ["Dandelion", "FREEDOM08", 6],
   ["Mysterious Stick", "BaiLin2", 6],
@@ -93,17 +92,16 @@ INITIAL_DATA_LIST = [
   ["Battery", "oar", 7],
   ["Mecha Antennae", "Mr_Alex", 6],
   ["Faster", "-Sam8375", 9],
-  ["Light Bulb", "-Sam8375", 7],
   ["Lightning", "Wolxs", 6],
   ["Claw", "gainer", 7],
   ["Light", "Bibi", 7],
   ["Clover", "-Sam8375", 27],
   ["Pharaoh's Crown", "FuGang", 42],
-  ["Glass", "BaiLin2", 21],
   ["Poo", "gainer", 15],
   ["Wing", "gainer", 25],
   ["Talisman of Evasion", "gainer", 9]
-]
+  ["Glass", "-Sam8375", 22],
+  ["Light Bulb", "BaiLin2", 8],
 ]
 
 data_list = []
