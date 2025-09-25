@@ -34,9 +34,10 @@ AUTO_UPDATE_MESSAGE_REGEX = re.compile(r"(.+)\s+is now owned by\s+(.+)")
 
 # --- BOT SETUP ---
 intents = discord.Intents.default()
+# We only need the message and message content intents, as our bot's functionality
+# does not rely on accessing member information.
 intents.messages = True
 intents.message_content = True
-intents.members = True
 
 client = discord.Client(intents=intents)
 
