@@ -68,11 +68,16 @@ async def on_ready():
     data = load_data()
     for channel_id, message_id in data.get("persistent_messages", []):
         try:
+            # We add this check to ensure we don't try to convert 'NoneType'
+            if channel_id is None or message_id is None:
+                print(f"Skipping invalid persistent message entry: ({channel_id}, {message_id})")
+                continue
+
             channel = client.get_channel(int(channel_id))
             if channel:
                 # Attempt to get the message to check if it exists
                 await channel.fetch_message(int(message_id))
-        except discord.NotFound:
+        except (discord.NotFound, discord.Forbidden):
             print(f"Persistent message {message_id} in channel {channel_id} not found. Re-announcing.")
             await announce_list(channel)
         except Exception as e:
