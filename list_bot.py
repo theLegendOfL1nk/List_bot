@@ -26,6 +26,7 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
+RAW_DATA_COMMAND = "list.bot raw" # NEW: Command to output raw data
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -43,65 +44,7 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 MAX_RECENT_ITEMS_TO_SHOW = 30
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = [
-  ['Air', 'gachanchall', 11],
-  ['Ant Egg', 'tianleshan', 11],
-  ['Antennae', 'Manfred', 9],
-  ['Battery', 'oar', 7],
-  ['Beetle Egg', 'hqyx', 11],
-  ['Bone', 'HUDUMOC', 10],
-  ['Bubble', 'Recon', 6],
-  ['Cactus', 'tianleshan', 7],
-  ['Card', 'hqyx', 6],
-  ['Claw', 'gainer', 7],
-  ['Clover', '-Sam8375', 27],
-  ['Coin', 'givemeygg', 26],
-  ['Corn', '-Sam8375', 6],
-  ['Corruption', 'Pehiley', 6],
-  ['Dandelion', 'FREEDOM08', 6],
-  ['Dark Mark', 'Craft_Super', 6],
-  ['Dice', 'Pehiley', 6],
-  ['Fang', 'hqyx', 8],
-  ['Faster', '-Sam8375', 9],
-  ['Glass', '-Sam8375', 22],
-  ['Heavy', 'asds', 6],
-  ['Iris', 'Craft_Super', 9],
-  ['Jelly', 'tarou9n', 7],
-  ['Leaf', 'Etin', 7],
-  ['Light', 'Bibi', 7],
-  ['Light Bulb', 'BaiLin2', 8],
-  ['Lightning', 'Wolxs', 6],
-  ['Magic Cactus', 'Pehiley', 6],
-  ['Magic Leaf', 'Manfred', 6],
-  ['Magic Missile', 'Pehiley', 6],
-  ['Magic Stick', 'Pehiley', 6],
-  ['Mana Orb', 'BONER_ALERT', 6],
-  ['Mecha Antennae', 'Mr_Alex', 6],
-  ['Mecha Missile', 'Mario', 6],
-  ['Missile', 'Missile', 8],
-  ['Mj\u00f6lnir', 'Manfred', 14],
-  ['Mysterious Relic', 'gujiga', 6],
-  ['Mysterious Stick', 'BaiLin2', 6],
-  ['Orange', 'Solar', 9],
-  ['Pearl', 'gachanchall', 6],
-  ['Peas', 'WTJ', 6],
-  ['Pharaoh\'s Crown', 'Char', 44],
-  ['Pincer', 'Avril', 8],
-  ['Poker Chip', 'PlayFlorrio', 12],
-  ['Poo', 'gainer', 15],
-  ['Privet Berry', 'Abstract', 8],
-  ['Rice', 'Manfred', 6],
-  ['Salt', 'tarou9n', 6],
-  ['Sand', 'Zorat', 13],
-  ['Starfish', 'CarrotJuice', 7],
-  ['Talisman of Evasion', 'gainer', 9],
-  ['Totem', 'BONER_ALERT', 6],
-  ['Triangle', 'gujiga', 8],
-  ['Wax', 'ProH', 6],
-  ['Web', 'Manfred', 6],
-  ['Wing', 'gainer', 25],
-  ['Yucca', 'Pehiley', 12]
-]
+INITIAL_DATA_LIST = []
 
 data_list = []
 
@@ -580,6 +523,47 @@ async def handle_restart_command(m: discord.Message):
         pass
 
 
+async def handle_raw_data_command(m: discord.Message):
+    global data_list
+    
+    # 1. Format the data_list (which is already in historical order) as a JSON string
+    try:
+        raw_data_json = json.dumps(data_list, indent=4)
+    except Exception as e:
+        await m.channel.send(f"Error converting list to JSON: {e}")
+        return
+
+    # 2. Split the JSON string into chunks that fit Discord's message limits
+    #    MAX_MESSAGE_LENGTH is 1900, leaving buffer for code block and header
+    max_chunk_size = 1900 - 100 
+    chunks = [raw_data_json[i:i + max_chunk_size] for i in range(0, len(raw_data_json), max_chunk_size)]
+
+    if not chunks:
+        await m.channel.send("The list is currently empty.")
+        return
+
+    # 3. Send the chunks, wrapped in a JSON code block
+    try:
+        await m.add_reaction("📄")
+    except:
+        pass
+
+    for i, chunk in enumerate(chunks):
+        header = f"Raw List Data (Part {i+1}/{len(chunks)})" if len(chunks) > 1 else "Raw List Data"
+        content = f"**{header}**\n```json\n{chunk}\n```"
+        try:
+            await m.channel.send(content)
+        except Exception as e:
+            print(f"Failed to send raw data part {i+1}: {e}")
+            await m.channel.send(f"Error sending part {i+1} of raw data.")
+        await asyncio.sleep(0.5) # Prevent rate-limiting
+    
+    try:
+        await m.add_reaction("✅")
+    except:
+        pass
+
+
 async def handle_manual_add_command(m: discord.Message):
     parts = m.content[len(MANUAL_ADD_COMMAND_PREFIX):].strip()
     match = re.fullmatch(r"\"([^\"]+)\"\s+\"([^\"]+)\"(?:\s+(\d+))?", parts)
@@ -761,7 +745,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}"')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}", Raw:"{RAW_DATA_COMMAND}"')
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -795,6 +779,9 @@ async def on_message(m: discord.Message):
             return
         if content_lower_stripped == ANNOUNCE_COMMAND.lower():
             await handle_announce_command(m)
+            return
+        if content_lower_stripped == RAW_DATA_COMMAND.lower(): # NEW: Raw data command
+            await handle_raw_data_command(m)
             return
         if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()):
             await handle_manual_add_command(m)
