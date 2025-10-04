@@ -41,14 +41,13 @@ EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
-# MAX_RECENT_ITEMS_TO_SHOW constant removed, replaced by time-based filtering
 MAX_MESSAGE_LENGTH = 1900
 
 INITIAL_DATA_LIST = []
 
 data_list = []
 
-# NEW: Constants for new data structure and time filtering
+# Constants for new data structure and time filtering
 TIMESTAMP_INDEX = 3 # Index for the new timestamp field in the data row
 ONE_WEEK_IN_SECONDS = 7 * 24 * 60 * 60
 
@@ -80,7 +79,7 @@ SORT_CONFIGS = {
         "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]), x[0].lower())),
         "column_order_indices": [2, 0, 1], "headers": ["Cost", "Item", "Name"]
     },
-    # UPDATED: 'sort_lambda' now sorts by timestamp (index 3) but the filtering is done in format_sorted_list_content
+    # 'sort_lambda' sorts by timestamp (index 3) but the filtering is done in format_sorted_list_content
     "sort_config_recent": {
         "label": "by Recent (1W)", "button_label": "Sort: Recent",
         "sort_lambda": lambda data: sorted(data, key=lambda x: x[TIMESTAMP_INDEX], reverse=False),
@@ -158,7 +157,8 @@ def save_data_list():
     try:
         temp_data_file = DATA_FILE + ".tmp"
         with open(temp_data_file, "w") as f:
-            json.dump(data_list, f, indent=4)
+            # Saving data should always be pretty-printed for readability in the file
+            json.dump(data_list, f, indent=4) 
         os.replace(temp_data_file, DATA_FILE)
         print(f"Successfully saved {len(data_list)} items to {DATA_FILE}.")
     except (IOError, TypeError) as e:
@@ -373,7 +373,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         return [f"The list is currently empty.\n{timestamp_line}"]
         
     if sort_key == "sort_config_recent":
-        # NEW: Filter for items updated in the last week
+        # Filter for items updated in the last week
         cutoff_time = int(time.time()) - ONE_WEEK_IN_SECONDS 
         
         # Filter the data based on the timestamp (at TIMESTAMP_INDEX)
@@ -410,7 +410,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     for i, part in enumerate(formatted_text_parts):
         part_header = ""
         if len(formatted_text_parts) > 1:
-            part_header = f"Part {i+1}/{len(formatted_text_parts)} - "
+            part_header = f"Part {i+1}/{len(formatted_message_parts)} - "
 
         timestamp_line = f"<t:{int(time.time())}:R> {part_header}{ts_msg_base}"
         # Recalculate content length, leaving space for the timestamp and code block
@@ -558,7 +558,8 @@ async def handle_raw_data_command(m: discord.Message):
     
     # 1. Format the data_list (which is already in historical order) as a JSON string
     try:
-        raw_data_json = json.dumps(data_list, indent=4)
+        # **CHANGE:** Removed 'indent=4' to create the compact JSON format.
+        raw_data_json = json.dumps(data_list) 
     except Exception as e:
         await m.channel.send(f"Error converting list to JSON: {e}")
         return
