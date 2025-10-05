@@ -27,6 +27,7 @@ ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
 RAW_DATA_COMMAND = "list.bot raw"
+MAIN_MESSAGE_COMMAND_PREFIX = "list.bot main" # <-- NEW COMMAND
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -44,9 +45,68 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 MAX_RECENT_ITEMS_TO_SHOW = 30
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = []
+INITIAL_DATA_LIST = [
+  ['Air', 'gachanchall', 11],
+  ['Ant Egg', 'tianleshan', 11],
+  ['Antennae', 'Manfred', 9],
+  ['Battery', 'Umit', 8],
+  ['Beetle Egg', 'hqyx', 11],
+  ['Bone', 'HUDUMOC', 10],
+  ['Bubble', 'Recon', 6],
+  ['Cactus', 'tianleshan', 7],
+  ['Card', 'hqyx', 6],
+  ['Claw', 'gainer', 7],
+  ['Clover', '-Sam8375', 27],
+  ['Coin', 'WTJ', 27],
+  ['Corn', '-Sam8375', 6],
+  ['Corruption', 'Pehiley', 6],
+  ['Dandelion', 'FREEDOM08', 6],
+  ['Dark Mark', 'Craft_Super', 6],
+  ['Dice', 'Pehiley', 6],
+  ['Fang', 'hqyx', 8],
+  ['Faster', '-Sam8375', 9],
+  ['Glass', '-Sam8375', 23],
+  ['Heavy', 'asds', 6],
+  ['Iris', 'Craft_Super', 9],
+  ['Jelly', 'tarou9n', 7],
+  ['Leaf', 'Etin', 7],
+  ['Light', 'Bibi', 7],
+  ['Light Bulb', 'BaiLin2', 8],
+  ['Lightning', 'Wolxs', 6],
+  ['Magic Cactus', 'Pehiley', 6],
+  ['Magic Leaf', 'Manfred', 6],
+  ['Magic Missile', 'Pehiley', 6],
+  ['Magic Stick', 'Pehiley', 6],
+  ['Mana Orb', 'BONER_ALERT', 6],
+  ['Mecha Antennae', 'Mr_Alex', 6],
+  ['Mecha Missile', 'Mario', 6],
+  ['Missile', 'Missile', 8],
+  ['Mjölnir', 'Manfred', 14],
+  ['Mysterious Relic', 'gujiga', 6],
+  ['Mysterious Stick', 'BaiLin2', 6],
+  ['Orange', 'Solar', 9],
+  ['Pearl', 'gachanchall', 6],
+  ['Peas', 'WTJ', 6],
+  ["Pharaoh's Crown", 'Missile', 51],
+  ['Pincer', 'Avril', 8],
+  ['Poker Chip', 'PlayFlorrio', 12],
+  ['Poo', 'gainer', 15],
+  ['Privet Berry', 'Avril', 9],
+  ['Rice', 'Manfred', 6],
+  ['Salt', 'tarou9n', 6],
+  ['Sand', 'Zorat', 13],
+  ['Starfish', 'CarrotJuice', 7],
+  ['Talisman of Evasion', 'gainer', 9],
+  ['Totem', 'BONER_ALERT', 6],
+  ['Triangle', 'gujiga', 8],
+  ['Wax', 'ProH', 6],
+  ['Web', 'Manfred', 6],
+  ['Wing', 'gainer', 25],
+  ['Yucca', 'Pehiley', 12]
+]
 
 data_list = []
+main_list_message = "Welcome to the List Bot! Select a sort option below." # <-- NEW GLOBAL
 
 # Helper function for the new 'Owner' sort
 def sort_by_owner_tally(data):
@@ -116,37 +176,58 @@ client = discord.Client(intents=intents)
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
 view_message_tracker = {}
 
-# Functions for data persistence
+# Functions for data persistence (Refactored to handle new dictionary structure)
 def load_data_list():
-    global data_list
+    global data_list, main_list_message
+    default_message = "Welcome to the List Bot! Select a sort option below."
+    
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 loaded_data = json.load(f)
-                if isinstance(loaded_data, list):
+                
+                # Handle new dictionary format
+                if isinstance(loaded_data, dict):
+                    data_list = loaded_data.get("data_list", [])
+                    main_list_message = loaded_data.get("main_list_message", default_message)
+                    print(f"Successfully loaded data: {len(data_list)} items, Main Message: '{main_list_message[:30]}...'")
+
+                # Handle legacy list format
+                elif isinstance(loaded_data, list):
                     data_list = loaded_data
-                    print(f"Successfully loaded {len(data_list)} items from {DATA_FILE}")
+                    main_list_message = default_message
+                    print(f"Loaded legacy data: {len(data_list)} items. Initializing default Main Message.")
+
                 else:
                     print(f"ERROR: {DATA_FILE} is corrupted or invalid. Initializing with hardcoded data.")
                     data_list = list(INITIAL_DATA_LIST)
+                    main_list_message = default_message
         except (IOError, json.JSONDecodeError) as e:
             print(f"ERROR loading data from {DATA_FILE}: {e}. Initializing with hardcoded data.")
             data_list = list(INITIAL_DATA_LIST)
+            main_list_message = default_message
     else:
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data.")
         data_list = list(INITIAL_DATA_LIST)
+        main_list_message = default_message
+
+    # Ensure cost is a string
     for row in data_list:
       if len(row) > 2:
         row[2] = str(row[2])
 
 def save_data_list():
-    global data_list
+    global data_list, main_list_message
     try:
+        data_to_save = {
+            "data_list": data_list,
+            "main_list_message": main_list_message
+        }
         temp_data_file = DATA_FILE + ".tmp"
         with open(temp_data_file, "w") as f:
-            json.dump(data_list, f, indent=4)
+            json.dump(data_to_save, f, indent=4)
         os.replace(temp_data_file, DATA_FILE)
-        print(f"Successfully saved {len(data_list)} items to {DATA_FILE}.")
+        print(f"Successfully saved {len(data_list)} items and config to {DATA_FILE}.")
     except (IOError, TypeError) as e:
         print(f"ERROR: Failed to save data to {DATA_FILE}: {e}")
 
@@ -384,8 +465,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         # Recalculate content length, leaving space for the timestamp and code block
         content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
-            # If a part is still too big, we need to be more aggressive
-            # This is a fallback that should ideally never be hit
+            # If a part is still too big, this is a fallback
             final_message_parts.append(f"List is too large to display. Please contact an admin.")
             print(f"Warning: A list part exceeded max length. Length: {content_length_with_meta}")
             break
@@ -396,7 +476,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
 
 async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new: bool = False):
-    global channel_list_states
+    global channel_list_states, main_list_message
     if target_channel_id not in channel_list_states:
         channel_list_states[target_channel_id] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
 
@@ -412,8 +492,7 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
     content_parts = format_sorted_list_content(default_sort, is_ephemeral=False)
     view = PersistentListPromptView(target_channel_id=target_channel_id)
     
-    # --- START MODIFICATION ---
-    last_index = len(content_parts) - 1 # Get the index of the last message part
+    last_index = len(content_parts) - 1
 
     if force_new or len(msg_ids) != len(content_parts):
         for msg_id in msg_ids:
@@ -429,15 +508,19 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     sent_messages = []
     for i, content in enumerate(content_parts):
-        # Determine if this is the last message part
         is_last_message = (i == last_index)
         view_to_use = view if is_last_message else None
 
+        # Prepend the main message to the FIRST part only
+        final_content = content
+        if i == 0 and main_list_message:
+            final_content = main_list_message + "\n\n" + content
+        
         if i < len(msg_ids):
             # Edit existing message
             try:
                 m = await channel.fetch_message(msg_ids[i])
-                await m.edit(content=content, view=view_to_use)
+                await m.edit(content=final_content, view=view_to_use)
                 
                 # Update tracker: add view if it's the last message, remove it otherwise
                 if is_last_message:
@@ -448,14 +531,14 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                 sent_messages.append(m.id)
             except discord.NotFound:
                 # If message is gone, send a new one
-                new_m = await channel.send(content=content, view=view_to_use)
+                new_m = await channel.send(content=final_content, view=view_to_use)
                 if is_last_message:
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
                 sent_messages.append(new_m.id)
             except Exception as e:
                 print(f"Error editing/sending part {i} of persistent prompt in {target_channel_id}: {e}")
                 try:
-                    new_m = await channel.send(content=content, view=view_to_use)
+                    new_m = await channel.send(content=final_content, view=view_to_use)
                     if is_last_message:
                         view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
                     sent_messages.append(new_m.id)
@@ -465,7 +548,7 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
             # Send new message
             try:
                 # The view is attached here only if it's the last message (i == last_index)
-                new_m = await channel.send(content=content, view=view_to_use)
+                new_m = await channel.send(content=final_content, view=view_to_use)
                 if is_last_message:
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
                 sent_messages.append(new_m.id)
@@ -473,7 +556,6 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                 print(f"Error sending new part {i} of persistent prompt to {target_channel_id}: {e}")
 
         await asyncio.sleep(0.5)
-    # --- END MODIFICATION ---
 
     for old_msg_id in msg_ids[len(content_parts):]:
         try:
@@ -575,6 +657,34 @@ async def handle_raw_data_command(m: discord.Message):
         await m.add_reaction("✅")
     except:
         pass
+
+
+async def handle_main_message_command(m: discord.Message):
+    global main_list_message
+    
+    # Pattern: list.bot main "Message content here"
+    match = re.match(rf'{re.escape(MAIN_MESSAGE_COMMAND_PREFIX)}\s+"([^"]*)"$', m.content.strip(), re.IGNORECASE)
+
+    if not match:
+        await m.channel.send(f"Format: `{MAIN_MESSAGE_COMMAND_PREFIX} \"Your new main message here\"`")
+        return
+
+    new_message = match.group(1).strip()
+    
+    if len(new_message) > 1000:
+         await m.channel.send("The main message must be less than 1000 characters.")
+         return
+    
+    if not new_message:
+        main_list_message = ""
+        action_msg = "The main list message has been **cleared**."
+    else:
+        main_list_message = new_message
+        action_msg = f"The main list message has been updated to:\n> {main_list_message}"
+
+    save_data_list()
+    await m.channel.send(action_msg)
+    await update_all_persistent_list_prompts(force_new=False)
 
 
 async def handle_manual_add_command(m: discord.Message):
@@ -758,7 +868,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}", Raw:"{RAW_DATA_COMMAND}"')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}", Raw:"{RAW_DATA_COMMAND}", Main:"{MAIN_MESSAGE_COMMAND_PREFIX}"')
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -795,6 +905,9 @@ async def on_message(m: discord.Message):
             return
         if content_lower_stripped == RAW_DATA_COMMAND.lower():
             await handle_raw_data_command(m)
+            return
+        if content_lower_stripped.startswith(MAIN_MESSAGE_COMMAND_PREFIX.lower()):
+            await handle_main_message_command(m)
             return
         if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()):
             await handle_manual_add_command(m)
