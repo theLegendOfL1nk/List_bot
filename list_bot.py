@@ -26,7 +26,7 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
-RAW_LIST_COMMAND = "list.bot raw" # NEW: Raw list command
+RAW_LIST_COMMAND = "list.bot raw" # ADDED: Raw list command
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -42,7 +42,7 @@ EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 MAX_RECENT_ITEMS_TO_SHOW = 30
-MAX_MESSAGE_LENGTH = 1900 # Maximum safe length for content
+MAX_MESSAGE_LENGTH = 1900
 
 INITIAL_DATA_LIST = [
   ['Air', 'gachanchall', 11, 1757036931],
@@ -114,7 +114,7 @@ def sort_by_owner_tally(data):
     name_counts = Counter(row[1].lower() for row in data)
     def custom_sort_key(row):
         name = row[1].lower()
-        # Fix: Safely convert cost to int, defaulting to 0
+        # FIX: Safely convert cost to int, defaulting to 0
         try:
             cost = int(row[2])
         except (IndexError, ValueError):
@@ -136,7 +136,7 @@ SORT_CONFIGS = {
     },
     "sort_config_cost": {
         "label": "by Cost", "button_label": "Sort: Cost",
-        # Fix: Use inline check for isdigit() to prevent ValueError crash
+        # FIX: Use safe check for isdigit() to prevent ValueError crash on non-numeric cost
         "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]) if str(x[2]).isdigit() else 0, x[0].lower())),
         "column_order_indices": [2, 0, 1], "headers": ["Cost", "Item", "Name"]
     },
@@ -449,8 +449,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         # Recalculate content length, leaving space for the timestamp and code block
         content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
-            # If a part is still too big, we need to be more aggressive
-            # This is a fallback that should ideally never be hit
+            # If a part is still too big, this is the fall-back
             final_message_parts.append(f"List is too large to display. Please contact an admin.")
             print(f"Warning: A list part exceeded max length. Length: {content_length_with_meta}")
             break
@@ -467,7 +466,7 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     state = channel_list_states[target_channel_id]
     msg_ids = state.get("message_ids", [])
-    default_sort = state.get("default_sort_key_for_display", DEFAULT_PERSORT_SORT_KEY)
+    default_sort = state.get("default_sort_key_for_display", DEFAULT_PERSISTENT_SORT_KEY)
 
     channel = client.get_channel(target_channel_id)
     if not channel:
@@ -733,7 +732,6 @@ async def handle_raw_list_command(m: discord.Message):
     raw_json = json.dumps(data_list, indent=2)
     
     # Target maximum content size inside the code block is 1850 (1900 - 50 for overhead).
-    # This leaves space for the header, code block markers, and potential timestamp/footer.
     MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150 
     
     # Split the raw_json string into chunks
@@ -755,15 +753,9 @@ async def handle_raw_list_command(m: discord.Message):
         else:
             header_text = "Raw List Data"
 
-        # Construct the final message with code block. The code block will break 
-        # the JSON structure across messages, but provides the raw data.
+        # Construct the final message with code block. 
         msg_content = f"{header_text}\n```json\n{chunk}\n```"
         
-        if len(msg_content) > 2000:
-            # Fallback for an extremely unlikely case where the chunk size plus overhead exceeds 2000
-            await m.channel.send(f"Error: Part {part_number} content length exceeded 2000 characters.")
-            continue 
-
         await m.channel.send(msg_content)
         # Add a slight delay between messages to avoid rate-limiting
         await asyncio.sleep(0.5) 
@@ -822,7 +814,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"') # UPDATED: Added RAW_LIST_COMMAND
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -866,9 +858,9 @@ async def on_message(m: discord.Message):
         if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()):
             await handle_say_command(m)
             return
-        if content_lower_stripped == RAW_LIST_COMMAND.lower():
+        if content_lower_stripped == RAW_LIST_COMMAND.lower(): # ADDED: Handle the raw list command
             await handle_raw_list_command(m)
-            return # NEW: Handle the raw list command
+            return
 
     if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
