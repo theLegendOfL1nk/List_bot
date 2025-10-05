@@ -41,7 +41,9 @@ EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
-MAX_RECENT_ITEMS_TO_SHOW = 30
+
+# CHANGED: 7 days in seconds for the new Recent filter
+SECONDS_IN_WEEK = 604800 
 MAX_MESSAGE_LENGTH = 1900
 
 INITIAL_DATA_LIST = [
@@ -114,7 +116,7 @@ def sort_by_owner_tally(data):
     name_counts = Counter(row[1].lower() for row in data)
     def custom_sort_key(row):
         name = row[1].lower()
-        # FIX: Safely convert cost to int, defaulting to 0
+        # Safely convert cost to int, defaulting to 0
         try:
             cost = int(row[2])
         except (IndexError, ValueError):
@@ -136,14 +138,19 @@ SORT_CONFIGS = {
     },
     "sort_config_cost": {
         "label": "by Cost", "button_label": "Sort: Cost",
-        # FIX: Use safe check for isdigit() to prevent ValueError crash on non-numeric cost
+        # Use safe check for isdigit() to prevent ValueError crash on non-numeric cost
         "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]) if str(x[2]).isdigit() else 0, x[0].lower())),
         "column_order_indices": [2, 0, 1], "headers": ["Cost", "Item", "Name"]
     },
     "sort_config_recent": {
-        "label": "by Recent", "button_label": "Sort: Recent",
-        "sort_lambda": lambda data: data[-MAX_RECENT_ITEMS_TO_SHOW:],
-        "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (Recent)"]
+        # CHANGED: Label reflects the new 7-day filter
+        "label": "by Recent (Last 7 Days)", "button_label": "Sort: Recent",
+        # CHANGED: The lambda filters items where the timestamp (index 3) is within the last 7 days, and reverses the result to show newest first.
+        "sort_lambda": lambda data: [
+            row for row in data 
+            if len(row) > 3 and row[3] >= (time.time() - SECONDS_IN_WEEK)
+        ][::-1],
+        "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (7 Days)"]
     },
     "sort_config_owner": {
         "label": "by Owner Count", "button_label": "Sort: Owner",
@@ -180,7 +187,7 @@ client = discord.Client(intents=intents)
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
 view_message_tracker = {}
 
-# NEW: Functions for data persistence
+# Functions for data persistence
 def load_data_list():
     global data_list
     if os.path.exists(DATA_FILE):
@@ -199,10 +206,15 @@ def load_data_list():
     else:
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data.")
         data_list = list(INITIAL_DATA_LIST)
+    
+    # NEW LOGIC: Ensure all rows have a timestamp (index 3) for the new Recent filter
     for row in data_list:
-      if len(row) > 2:
-        # Ensure cost is stored as a string
-        row[2] = str(row[2])
+        if len(row) > 2:
+            # Ensure cost is stored as a string
+            row[2] = str(row[2])
+        # If old data is loaded (length < 4), append a 0 timestamp (which fails the 7-day filter)
+        if len(row) < 4:
+            row.append(0)
 
 def save_data_list():
     global data_list
@@ -337,6 +349,9 @@ def update_data_for_auto(item_val, name_val):
         if row[0].lower() == item_val.lower():
             found_idx = i
             break
+    
+    current_time_epoch = time.time()
+    
     if found_idx != -1:
         existing_row = data_list.pop(found_idx)
         existing_row[1] = name_val
@@ -345,10 +360,14 @@ def update_data_for_auto(item_val, name_val):
         except ValueError:
             final_cost = "1"
         existing_row[2] = final_cost
+        # NEW: Update timestamp
+        existing_row[3] = current_time_epoch
         data_list.append(existing_row)
     else:
-        new_row = [item_val, name_val, final_cost]
+        # NEW: Add timestamp
+        new_row = [item_val, name_val, final_cost, current_time_epoch]
         data_list.append(new_row)
+        
     _update_last_changed_details(item_val, name_val, final_cost)
     save_data_list()
     print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
@@ -361,12 +380,13 @@ def format_list_for_display(data, col_indices, headers):
     # Calculate max widths for each column based on headers and data
     widths = [len(h) for h in headers]
     for r in data:
+        # NOTE: data rows now have 4 elements (Item, Name, Cost, Timestamp)
+        # We only display the first 3 elements defined by col_indices.
         disp_row = [str(r[i]) for i in col_indices]
         for i, val in enumerate(disp_row):
             widths[i] = max(widths[i], len(val))
 
     # Calculate padding for each column.
-    # We use a small amount of padding to save space.
     padding = [2] * len(widths)
     # The total line length is the sum of widths and padding
     total_line_length = sum(widths) + sum(padding) - padding[-1]
@@ -388,7 +408,6 @@ def format_list_for_display(data, col_indices, headers):
         line = " ".join(f"{disp_row[i]:<{widths[i]}}" for i in range(len(headers)))
         
         # Check if adding the new line will exceed the max length
-        # We also need to account for the code block, timestamp, etc.
         if current_length + len(line) + 1 + 100 > MAX_MESSAGE_LENGTH:
             message_parts.append("\n".join(current_part_lines))
             current_part_lines = [header_line, line]
@@ -407,21 +426,19 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     list_data_source = data_list
     processed_data = []
     
-    # FIX: Define a standardized timestamp line for all list updates
+    # Define a standardized timestamp line for all list updates
     current_epoch = int(time.time())
-    # Format F: Full Date/Time; Format R: Relative Time (e.g., 3 minutes ago)
     timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)" 
     
     if sort_key == "sort_config_recent":
-        # Processed data is the last MAX_RECENT_ITEMS_TO_SHOW items
-        processed_data = list_data_source[-MAX_RECENT_ITEMS_TO_SHOW:]
+        # Processed data is filtered by the 7-day lambda defined in SORT_CONFIGS
+        processed_data = sort_details["sort_lambda"](list_data_source)
         
         if not processed_data:
-            empty_msg = "The list is currently empty. No recent items to display."
+            empty_msg = "No items have been updated in the last 7 days."
             timestamp_line = f"{empty_msg}\nLast Updated: {timestamp_base} (Sorted {sort_details['label']})"
             return [timestamp_line]
         
-        # If the list is not empty, proceed with formatting the recent items
         formatted_text_parts = format_list_for_display(processed_data,
                                                        sort_details["column_order_indices"],
                                                        sort_details["headers"])
@@ -450,7 +467,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         if len(formatted_text_parts) > 1:
             part_header = f"Part {i+1}/{len(formatted_text_parts)} - "
 
-        # NEW: Inject the clear, standardized timestamp
+        # Inject the clear, standardized timestamp
         timestamp_line = f"Last Updated: {timestamp_base} | {part_header}{ts_msg_base}"
         
         # Recalculate content length, leaving space for the timestamp and code block
@@ -612,6 +629,8 @@ async def handle_manual_add_command(m: discord.Message):
             found_idx = i
             break
 
+    current_time_epoch = time.time()
+    
     if found_idx != -1:
         row_to_update = data_list.pop(found_idx)
         row_to_update[1] = name_in
@@ -623,13 +642,17 @@ async def handle_manual_add_command(m: discord.Message):
             except:
                 final_cost = "1"
         row_to_update[2] = final_cost
+        # NEW: Update timestamp
+        row_to_update[3] = current_time_epoch
         data_list.append(row_to_update)
         resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
     else:
         final_cost = cost_s if cost_s else "6"
-        new_row = [item_in, name_in, final_cost]
+        # NEW: Add timestamp
+        new_row = [item_in, name_in, final_cost, current_time_epoch]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
+        
     _update_last_changed_details(item_in, name_in, final_cost)
     save_data_list()
     await m.channel.send(resp)
@@ -644,6 +667,7 @@ async def handle_delete_command(message: discord.Message):
     item_to_delete = parts_str[1:-1]
     global data_list
     original_len = len(data_list)
+    # Filter by item name (index 0). Retain existing 4-element structure
     data_list = [r for r in data_list if r[0].lower() != item_to_delete.lower()]
     if len(data_list) < original_len:
         await message.channel.send(f"Item '{item_to_delete}' deleted.")
