@@ -26,6 +26,7 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
+RAW_LIST_COMMAND = "list.bot raw" # NEW: Raw list command
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -41,8 +42,7 @@ EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 MAX_RECENT_ITEMS_TO_SHOW = 30
-MAX_MESSAGE_LENGTH = 1900
-ONE_WEEK_SECONDS = 60 * 60 * 24 * 7 # NEW: 604800 seconds
+MAX_MESSAGE_LENGTH = 1900 # Maximum safe length for content
 
 INITIAL_DATA_LIST = [
   ['Air', 'gachanchall', 11, 1757036931],
@@ -114,6 +114,7 @@ def sort_by_owner_tally(data):
     name_counts = Counter(row[1].lower() for row in data)
     def custom_sort_key(row):
         name = row[1].lower()
+        # Fix: Safely convert cost to int, defaulting to 0
         try:
             cost = int(row[2])
         except (IndexError, ValueError):
@@ -135,13 +136,13 @@ SORT_CONFIGS = {
     },
     "sort_config_cost": {
         "label": "by Cost", "button_label": "Sort: Cost",
-        "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]), x[0].lower())),
+        # Fix: Use inline check for isdigit() to prevent ValueError crash
+        "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]) if str(x[2]).isdigit() else 0, x[0].lower())),
         "column_order_indices": [2, 0, 1], "headers": ["Cost", "Item", "Name"]
     },
     "sort_config_recent": {
         "label": "by Recent", "button_label": "Sort: Recent",
-        # The sort is now handled inside format_sorted_list_content()
-        "sort_lambda": lambda data: data, 
+        "sort_lambda": lambda data: data[-MAX_RECENT_ITEMS_TO_SHOW:],
         "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (Recent)"]
     },
     "sort_config_owner": {
@@ -198,20 +199,10 @@ def load_data_list():
     else:
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data.")
         data_list = list(INITIAL_DATA_LIST)
-    
-    # NEW: Ensure cost is a string and add epoch time if missing
-    for i, row in enumerate(data_list):
+    for row in data_list:
       if len(row) > 2:
-        row[2] = str(row[2]) # Ensure cost is string
-      
-      # If epoch time (4th element) is missing or invalid, set to "1"
-      if len(row) < 4 or not str(row[3]).isdigit():
-          # "1" is a very old timestamp, ensuring old data is excluded from the 'recent' sort.
-          if len(row) < 4:
-              row.append("1")
-          else:
-              row[3] = "1"
-          data_list[i] = row
+        # Ensure cost is stored as a string
+        row[2] = str(row[2])
 
 def save_data_list():
     global data_list
@@ -342,13 +333,10 @@ def update_data_for_auto(item_val, name_val):
     global data_list
     found_idx = -1
     final_cost = "6"
-    current_epoch = str(int(time.time())) # NEW: Get current epoch time
-
     for i, row in enumerate(data_list):
         if row[0].lower() == item_val.lower():
             found_idx = i
             break
-            
     if found_idx != -1:
         existing_row = data_list.pop(found_idx)
         existing_row[1] = name_val
@@ -357,22 +345,13 @@ def update_data_for_auto(item_val, name_val):
         except ValueError:
             final_cost = "1"
         existing_row[2] = final_cost
-        
-        # NEW: Update the epoch time (4th element)
-        if len(existing_row) == 4:
-            existing_row[3] = current_epoch
-        else:
-            existing_row.append(current_epoch) 
-            
         data_list.append(existing_row)
     else:
-        # NEW: Add epoch time for a new row
-        new_row = [item_val, name_val, final_cost, current_epoch]
+        new_row = [item_val, name_val, final_cost]
         data_list.append(new_row)
-        
     _update_last_changed_details(item_val, name_val, final_cost)
     save_data_list()
-    print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}',Epoch='{current_epoch}' (Auto)")
+    print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
     return final_cost
 
 def format_list_for_display(data, col_indices, headers):
@@ -382,7 +361,6 @@ def format_list_for_display(data, col_indices, headers):
     # Calculate max widths for each column based on headers and data
     widths = [len(h) for h in headers]
     for r in data:
-        # Note: r is now a 4-element list, but col_indices are only 0, 1, 2.
         disp_row = [str(r[i]) for i in col_indices]
         for i, val in enumerate(disp_row):
             widths[i] = max(widths[i], len(val))
@@ -430,47 +408,15 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     processed_data = []
 
     if sort_key == "sort_config_recent":
-        
-        # NEW: Filter data to only include items updated within the last week
-        one_week_ago_epoch = int(time.time()) - ONE_WEEK_SECONDS
-        
-        def is_recent(row):
-            # Must have 4 elements and the 4th must be a number
-            if len(row) < 4:
-                return False 
-            try:
-                # The 4th element (index 3) is the epoch time
-                item_epoch = int(row[3])
-                # Filter out entries where epoch time is older than one week ago
-                return item_epoch >= one_week_ago_epoch
-            except ValueError:
-                return False # Exclude if epoch time is not a valid number
-
-        # 1. Filter the entire list for recent items
-        recent_filtered_data = [row for row in list_data_source if is_recent(row)]
-        
-        # 2. Sort filtered data by epoch time (4th element, descending)
-        def sort_by_epoch(row):
-            try:
-                return int(row[3])
-            except (IndexError, ValueError):
-                return 0 
-        
-        recent_filtered_data.sort(key=sort_by_epoch, reverse=True)
-        
-        # 3. Take the MAX_RECENT_ITEMS_TO_SHOW
-        processed_data = recent_filtered_data[:MAX_RECENT_ITEMS_TO_SHOW]
-        
-        # 4. Reverse the final display order to show oldest recent at top, newest at bottom
-        processed_data.reverse()
-
-        # Handle empty/missing data cases
+        processed_data = list_data_source[-MAX_RECENT_ITEMS_TO_SHOW:]
         if not processed_data and list_data_source:
-            empty_msg = "No items updated in the last week." if is_ephemeral else "No items updated in the last week to display."
+            processed_data = list_data_source
+        elif not processed_data and not list_data_source:
+            empty_msg = "No recent changes, and the list is empty." if is_ephemeral else "The list is currently empty."
             timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
             return [f"{empty_msg}\n{timestamp_line}"]
-        elif not processed_data and not list_data_source:
-            empty_msg = "The list is empty." if is_ephemeral else "The list is currently empty."
+        if not processed_data:
+            empty_msg = "No recent changes to display." if is_ephemeral else "The list is currently empty, so no recent changes."
             timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
             return [f"{empty_msg}\n{timestamp_line}"]
 
@@ -521,7 +467,7 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     state = channel_list_states[target_channel_id]
     msg_ids = state.get("message_ids", [])
-    default_sort = state.get("default_sort_key_for_display", DEFAULT_PERSISTENT_SORT_KEY)
+    default_sort = state.get("default_sort_key_for_display", DEFAULT_PERSORT_SORT_KEY)
 
     channel = client.get_channel(target_channel_id)
     if not channel:
@@ -654,7 +600,6 @@ async def handle_manual_add_command(m: discord.Message):
     found_idx = -1
     resp = ""
     final_cost = "6"
-    current_epoch = str(int(time.time())) # NEW: Get current epoch time
 
     for i, r in enumerate(data_list):
         if r[0].lower() == item_in.lower():
@@ -672,22 +617,13 @@ async def handle_manual_add_command(m: discord.Message):
             except:
                 final_cost = "1"
         row_to_update[2] = final_cost
-        
-        # NEW: Update the epoch time (4th element)
-        if len(row_to_update) == 4:
-             row_to_update[3] = current_epoch
-        else:
-             row_to_update.append(current_epoch)
-
         data_list.append(row_to_update)
         resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
     else:
         final_cost = cost_s if cost_s else "6"
-        # NEW: Add epoch time for a new row
-        new_row = [item_in, name_in, final_cost, current_epoch]
+        new_row = [item_in, name_in, final_cost]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
-        
     _update_last_changed_details(item_in, name_in, final_cost)
     save_data_list()
     await m.channel.send(resp)
@@ -785,6 +721,59 @@ async def handle_close_lists_command(m: discord.Message):
         pass
 
 
+async def handle_raw_list_command(m: discord.Message):
+    """Handles the 'list.bot raw' command by dumping data_list as JSON and splitting into multiple messages if needed."""
+    global data_list
+    
+    if not data_list:
+        await m.channel.send("`data_list` is empty.")
+        return
+
+    # Dump the data_list to a JSON string with an indent for readability
+    raw_json = json.dumps(data_list, indent=2)
+    
+    # Target maximum content size inside the code block is 1850 (1900 - 50 for overhead).
+    # This leaves space for the header, code block markers, and potential timestamp/footer.
+    MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150 
+    
+    # Split the raw_json string into chunks
+    chunks = []
+    i = 0
+    while i < len(raw_json):
+        chunk = raw_json[i:i + MAX_CONTENT_CHUNK_SIZE]
+        chunks.append(chunk)
+        i += MAX_CONTENT_CHUNK_SIZE
+
+    total_parts = len(chunks)
+
+    for i, chunk in enumerate(chunks):
+        part_number = i + 1
+        
+        # Add a descriptive header for multi-part messages
+        if total_parts > 1:
+            header_text = f"Raw List Data (Part {part_number}/{total_parts})"
+        else:
+            header_text = "Raw List Data"
+
+        # Construct the final message with code block. The code block will break 
+        # the JSON structure across messages, but provides the raw data.
+        msg_content = f"{header_text}\n```json\n{chunk}\n```"
+        
+        if len(msg_content) > 2000:
+            # Fallback for an extremely unlikely case where the chunk size plus overhead exceeds 2000
+            await m.channel.send(f"Error: Part {part_number} content length exceeded 2000 characters.")
+            continue 
+
+        await m.channel.send(msg_content)
+        # Add a slight delay between messages to avoid rate-limiting
+        await asyncio.sleep(0.5) 
+
+    try:
+        await m.add_reaction("✅")
+    except:
+        pass
+
+
 async def send_custom_update_notifications(item_val, name_val, cost_val):
     print(f"Notifications for: Item '{item_val}', Name '{name_val}', Cost '{cost_val}'")
     for cfg in UPDATE_NOTIFICATION_CONFIG:
@@ -833,7 +822,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}"')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -877,6 +866,9 @@ async def on_message(m: discord.Message):
         if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()):
             await handle_say_command(m)
             return
+        if content_lower_stripped == RAW_LIST_COMMAND.lower():
+            await handle_raw_list_command(m)
+            return # NEW: Handle the raw list command
 
     if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
