@@ -26,7 +26,7 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
-RAW_DATA_COMMAND = "list.bot raw" # <-- ADDED COMMAND CONSTANT
+RAW_DATA_COMMAND = "list.bot raw"
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -116,7 +116,7 @@ client = discord.Client(intents=intents)
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
 view_message_tracker = {}
 
-# NEW: Functions for data persistence
+# Functions for data persistence
 def load_data_list():
     global data_list
     if os.path.exists(DATA_FILE):
@@ -382,7 +382,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
         timestamp_line = f"<t:{int(time.time())}:R> {part_header}{ts_msg_base}"
         # Recalculate content length, leaving space for the timestamp and code block
-        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
+        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
             # If a part is still too big, we need to be more aggressive
             # This is a fallback that should ideally never be hit
@@ -411,6 +411,9 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     content_parts = format_sorted_list_content(default_sort, is_ephemeral=False)
     view = PersistentListPromptView(target_channel_id=target_channel_id)
+    
+    # --- START MODIFICATION ---
+    last_index = len(content_parts) - 1 # Get the index of the last message part
 
     if force_new or len(msg_ids) != len(content_parts):
         for msg_id in msg_ids:
@@ -426,48 +429,51 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     sent_messages = []
     for i, content in enumerate(content_parts):
+        # Determine if this is the last message part
+        is_last_message = (i == last_index)
+        view_to_use = view if is_last_message else None
+
         if i < len(msg_ids):
+            # Edit existing message
             try:
                 m = await channel.fetch_message(msg_ids[i])
-                if i == 0:
-                    await m.edit(content=content, view=view)
+                await m.edit(content=content, view=view_to_use)
+                
+                # Update tracker: add view if it's the last message, remove it otherwise
+                if is_last_message:
                     view_message_tracker[m.id] = ("PersistentListPromptView", target_channel_id)
-                else:
-                    await m.edit(content=content, view=None)
+                elif m.id in view_message_tracker:
+                    del view_message_tracker[m.id]
+                    
                 sent_messages.append(m.id)
             except discord.NotFound:
-                new_m = None
-                if i == 0:
-                    new_m = await channel.send(content=content, view=view)
+                # If message is gone, send a new one
+                new_m = await channel.send(content=content, view=view_to_use)
+                if is_last_message:
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
-                else:
-                    new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
             except Exception as e:
                 print(f"Error editing/sending part {i} of persistent prompt in {target_channel_id}: {e}")
                 try:
-                    new_m = None
-                    if i == 0:
-                        new_m = await channel.send(content=content, view=view)
+                    new_m = await channel.send(content=content, view=view_to_use)
+                    if is_last_message:
                         view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
-                    else:
-                        new_m = await channel.send(content=content, view=None)
                     sent_messages.append(new_m.id)
                 except Exception as e2:
                     print(f"Critical: Failed to send new message for part {i} in {target_channel_id}: {e2}")
         else:
+            # Send new message
             try:
-                new_m = None
-                if i == 0 and not msg_ids:
-                    new_m = await channel.send(content=content, view=view)
+                # The view is attached here only if it's the last message (i == last_index)
+                new_m = await channel.send(content=content, view=view_to_use)
+                if is_last_message:
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
-                else:
-                    new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
             except Exception as e:
                 print(f"Error sending new part {i} of persistent prompt to {target_channel_id}: {e}")
 
         await asyncio.sleep(0.5)
+    # --- END MODIFICATION ---
 
     for old_msg_id in msg_ids[len(content_parts):]:
         try:
@@ -523,7 +529,7 @@ async def handle_restart_command(m: discord.Message):
         pass
 
 
-async def handle_raw_data_command(m: discord.Message): # <-- ADDED FUNCTION
+async def handle_raw_data_command(m: discord.Message):
     global data_list
     
     # 1. Format the data_list into the custom, less-indented JSON string
@@ -752,7 +758,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}", Raw:"{RAW_DATA_COMMAND}"') # <-- UPDATED PRINT
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}", Raw:"{RAW_DATA_COMMAND}"')
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -787,7 +793,7 @@ async def on_message(m: discord.Message):
         if content_lower_stripped == ANNOUNCE_COMMAND.lower():
             await handle_announce_command(m)
             return
-        if content_lower_stripped == RAW_DATA_COMMAND.lower(): # <-- ADDED COMMAND CHECK
+        if content_lower_stripped == RAW_DATA_COMMAND.lower():
             await handle_raw_data_command(m)
             return
         if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()):
