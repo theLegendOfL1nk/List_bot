@@ -26,8 +26,6 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
-RAW_DATA_COMMAND = "list.bot raw"
-MAIN_MESSAGE_COMMAND_PREFIX = "list.bot main" # <-- NEW COMMAND
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -44,6 +42,7 @@ channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 MAX_RECENT_ITEMS_TO_SHOW = 30
 MAX_MESSAGE_LENGTH = 1900
+ONE_WEEK_SECONDS = 60 * 60 * 24 * 7 # NEW: 604800 seconds
 
 INITIAL_DATA_LIST = [
   ['Air', 'gachanchall', 11],
@@ -93,6 +92,7 @@ INITIAL_DATA_LIST = [
   ['Poo', 'gainer', 15],
   ['Privet Berry', 'Avril', 9],
   ['Rice', 'Manfred', 6],
+  ['Rock', 'Wolxs', 6],
   ['Salt', 'tarou9n', 6],
   ['Sand', 'Zorat', 13],
   ['Starfish', 'CarrotJuice', 7],
@@ -106,7 +106,6 @@ INITIAL_DATA_LIST = [
 ]
 
 data_list = []
-main_list_message = "Welcome to the List Bot! Select a sort option below." # <-- NEW GLOBAL
 
 # Helper function for the new 'Owner' sort
 def sort_by_owner_tally(data):
@@ -115,7 +114,10 @@ def sort_by_owner_tally(data):
     name_counts = Counter(row[1].lower() for row in data)
     def custom_sort_key(row):
         name = row[1].lower()
-        cost = int(row[2])
+        try:
+            cost = int(row[2])
+        except (IndexError, ValueError):
+            cost = 0 
         return (-name_counts[name], name, -cost)
     return sorted(data, key=custom_sort_key)
 
@@ -138,7 +140,8 @@ SORT_CONFIGS = {
     },
     "sort_config_recent": {
         "label": "by Recent", "button_label": "Sort: Recent",
-        "sort_lambda": lambda data: data[-MAX_RECENT_ITEMS_TO_SHOW:],
+        # The sort is now handled inside format_sorted_list_content()
+        "sort_lambda": lambda data: data, 
         "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (Recent)"]
     },
     "sort_config_owner": {
@@ -176,58 +179,48 @@ client = discord.Client(intents=intents)
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
 view_message_tracker = {}
 
-# Functions for data persistence (Refactored to handle new dictionary structure)
+# NEW: Functions for data persistence
 def load_data_list():
-    global data_list, main_list_message
-    default_message = "Welcome to the List Bot! Select a sort option below."
-    
+    global data_list
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 loaded_data = json.load(f)
-                
-                # Handle new dictionary format
-                if isinstance(loaded_data, dict):
-                    data_list = loaded_data.get("data_list", [])
-                    main_list_message = loaded_data.get("main_list_message", default_message)
-                    print(f"Successfully loaded data: {len(data_list)} items, Main Message: '{main_list_message[:30]}...'")
-
-                # Handle legacy list format
-                elif isinstance(loaded_data, list):
+                if isinstance(loaded_data, list):
                     data_list = loaded_data
-                    main_list_message = default_message
-                    print(f"Loaded legacy data: {len(data_list)} items. Initializing default Main Message.")
-
+                    print(f"Successfully loaded {len(data_list)} items from {DATA_FILE}")
                 else:
                     print(f"ERROR: {DATA_FILE} is corrupted or invalid. Initializing with hardcoded data.")
                     data_list = list(INITIAL_DATA_LIST)
-                    main_list_message = default_message
         except (IOError, json.JSONDecodeError) as e:
             print(f"ERROR loading data from {DATA_FILE}: {e}. Initializing with hardcoded data.")
             data_list = list(INITIAL_DATA_LIST)
-            main_list_message = default_message
     else:
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data.")
         data_list = list(INITIAL_DATA_LIST)
-        main_list_message = default_message
-
-    # Ensure cost is a string
-    for row in data_list:
+    
+    # NEW: Ensure cost is a string and add epoch time if missing
+    for i, row in enumerate(data_list):
       if len(row) > 2:
-        row[2] = str(row[2])
+        row[2] = str(row[2]) # Ensure cost is string
+      
+      # If epoch time (4th element) is missing or invalid, set to "1"
+      if len(row) < 4 or not str(row[3]).isdigit():
+          # "1" is a very old timestamp, ensuring old data is excluded from the 'recent' sort.
+          if len(row) < 4:
+              row.append("1")
+          else:
+              row[3] = "1"
+          data_list[i] = row
 
 def save_data_list():
-    global data_list, main_list_message
+    global data_list
     try:
-        data_to_save = {
-            "data_list": data_list,
-            "main_list_message": main_list_message
-        }
         temp_data_file = DATA_FILE + ".tmp"
         with open(temp_data_file, "w") as f:
-            json.dump(data_to_save, f, indent=4)
+            json.dump(data_list, f, indent=4)
         os.replace(temp_data_file, DATA_FILE)
-        print(f"Successfully saved {len(data_list)} items and config to {DATA_FILE}.")
+        print(f"Successfully saved {len(data_list)} items to {DATA_FILE}.")
     except (IOError, TypeError) as e:
         print(f"ERROR: Failed to save data to {DATA_FILE}: {e}")
 
@@ -349,10 +342,13 @@ def update_data_for_auto(item_val, name_val):
     global data_list
     found_idx = -1
     final_cost = "6"
+    current_epoch = str(int(time.time())) # NEW: Get current epoch time
+
     for i, row in enumerate(data_list):
         if row[0].lower() == item_val.lower():
             found_idx = i
             break
+            
     if found_idx != -1:
         existing_row = data_list.pop(found_idx)
         existing_row[1] = name_val
@@ -361,13 +357,22 @@ def update_data_for_auto(item_val, name_val):
         except ValueError:
             final_cost = "1"
         existing_row[2] = final_cost
+        
+        # NEW: Update the epoch time (4th element)
+        if len(existing_row) == 4:
+            existing_row[3] = current_epoch
+        else:
+            existing_row.append(current_epoch) 
+            
         data_list.append(existing_row)
     else:
-        new_row = [item_val, name_val, final_cost]
+        # NEW: Add epoch time for a new row
+        new_row = [item_val, name_val, final_cost, current_epoch]
         data_list.append(new_row)
+        
     _update_last_changed_details(item_val, name_val, final_cost)
     save_data_list()
-    print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
+    print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}',Epoch='{current_epoch}' (Auto)")
     return final_cost
 
 def format_list_for_display(data, col_indices, headers):
@@ -377,6 +382,7 @@ def format_list_for_display(data, col_indices, headers):
     # Calculate max widths for each column based on headers and data
     widths = [len(h) for h in headers]
     for r in data:
+        # Note: r is now a 4-element list, but col_indices are only 0, 1, 2.
         disp_row = [str(r[i]) for i in col_indices]
         for i, val in enumerate(disp_row):
             widths[i] = max(widths[i], len(val))
@@ -424,15 +430,47 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     processed_data = []
 
     if sort_key == "sort_config_recent":
-        processed_data = list_data_source[-MAX_RECENT_ITEMS_TO_SHOW:]
+        
+        # NEW: Filter data to only include items updated within the last week
+        one_week_ago_epoch = int(time.time()) - ONE_WEEK_SECONDS
+        
+        def is_recent(row):
+            # Must have 4 elements and the 4th must be a number
+            if len(row) < 4:
+                return False 
+            try:
+                # The 4th element (index 3) is the epoch time
+                item_epoch = int(row[3])
+                # Filter out entries where epoch time is older than one week ago
+                return item_epoch >= one_week_ago_epoch
+            except ValueError:
+                return False # Exclude if epoch time is not a valid number
+
+        # 1. Filter the entire list for recent items
+        recent_filtered_data = [row for row in list_data_source if is_recent(row)]
+        
+        # 2. Sort filtered data by epoch time (4th element, descending)
+        def sort_by_epoch(row):
+            try:
+                return int(row[3])
+            except (IndexError, ValueError):
+                return 0 
+        
+        recent_filtered_data.sort(key=sort_by_epoch, reverse=True)
+        
+        # 3. Take the MAX_RECENT_ITEMS_TO_SHOW
+        processed_data = recent_filtered_data[:MAX_RECENT_ITEMS_TO_SHOW]
+        
+        # 4. Reverse the final display order to show oldest recent at top, newest at bottom
+        processed_data.reverse()
+
+        # Handle empty/missing data cases
         if not processed_data and list_data_source:
-            processed_data = list_data_source
-        elif not processed_data and not list_data_source:
-            empty_msg = "No recent changes, and the list is empty." if is_ephemeral else "The list is currently empty."
+            empty_msg = "No items updated in the last week." if is_ephemeral else "No items updated in the last week to display."
             timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
             return [f"{empty_msg}\n{timestamp_line}"]
-        if not processed_data:
-            empty_msg = "No recent changes to display." if is_ephemeral else "The list is currently empty, so no recent changes."
+        elif not processed_data and not list_data_source:
+            empty_msg = "The list is empty." if is_ephemeral else "The list is currently empty."
             timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
             return [f"{empty_msg}\n{timestamp_line}"]
 
@@ -463,9 +501,10 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
         timestamp_line = f"<t:{int(time.time())}:R> {part_header}{ts_msg_base}"
         # Recalculate content length, leaving space for the timestamp and code block
-        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1
+        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
-            # If a part is still too big, this is a fallback
+            # If a part is still too big, we need to be more aggressive
+            # This is a fallback that should ideally never be hit
             final_message_parts.append(f"List is too large to display. Please contact an admin.")
             print(f"Warning: A list part exceeded max length. Length: {content_length_with_meta}")
             break
@@ -476,7 +515,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
 
 async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new: bool = False):
-    global channel_list_states, main_list_message
+    global channel_list_states
     if target_channel_id not in channel_list_states:
         channel_list_states[target_channel_id] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
 
@@ -491,8 +530,6 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     content_parts = format_sorted_list_content(default_sort, is_ephemeral=False)
     view = PersistentListPromptView(target_channel_id=target_channel_id)
-    
-    last_index = len(content_parts) - 1
 
     if force_new or len(msg_ids) != len(content_parts):
         for msg_id in msg_ids:
@@ -508,49 +545,43 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     sent_messages = []
     for i, content in enumerate(content_parts):
-        is_last_message = (i == last_index)
-        view_to_use = view if is_last_message else None
-
-        # Prepend the main message to the FIRST part only
-        final_content = content
-        if i == 0 and main_list_message:
-            final_content = main_list_message + "\n\n" + content
-        
         if i < len(msg_ids):
-            # Edit existing message
             try:
                 m = await channel.fetch_message(msg_ids[i])
-                await m.edit(content=final_content, view=view_to_use)
-                
-                # Update tracker: add view if it's the last message, remove it otherwise
-                if is_last_message:
+                if i == 0:
+                    await m.edit(content=content, view=view)
                     view_message_tracker[m.id] = ("PersistentListPromptView", target_channel_id)
-                elif m.id in view_message_tracker:
-                    del view_message_tracker[m.id]
-                    
+                else:
+                    await m.edit(content=content, view=None)
                 sent_messages.append(m.id)
             except discord.NotFound:
-                # If message is gone, send a new one
-                new_m = await channel.send(content=final_content, view=view_to_use)
-                if is_last_message:
+                new_m = None
+                if i == 0:
+                    new_m = await channel.send(content=content, view=view)
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                else:
+                    new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
             except Exception as e:
                 print(f"Error editing/sending part {i} of persistent prompt in {target_channel_id}: {e}")
                 try:
-                    new_m = await channel.send(content=final_content, view=view_to_use)
-                    if is_last_message:
+                    new_m = None
+                    if i == 0:
+                        new_m = await channel.send(content=content, view=view)
                         view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                    else:
+                        new_m = await channel.send(content=content, view=None)
                     sent_messages.append(new_m.id)
                 except Exception as e2:
                     print(f"Critical: Failed to send new message for part {i} in {target_channel_id}: {e2}")
         else:
-            # Send new message
             try:
-                # The view is attached here only if it's the last message (i == last_index)
-                new_m = await channel.send(content=final_content, view=view_to_use)
-                if is_last_message:
+                new_m = None
+                if i == 0 and not msg_ids:
+                    new_m = await channel.send(content=content, view=view)
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                else:
+                    new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
             except Exception as e:
                 print(f"Error sending new part {i} of persistent prompt to {target_channel_id}: {e}")
@@ -611,82 +642,6 @@ async def handle_restart_command(m: discord.Message):
         pass
 
 
-async def handle_raw_data_command(m: discord.Message):
-    global data_list
-    
-    # 1. Format the data_list into the custom, less-indented JSON string
-    try:
-        if not data_list:
-            raw_data_json = "[]"
-        else:
-            # Step 1: Dump each inner row compactly
-            inner_rows_compact = [json.dumps(row) for row in data_list]
-            
-            # Step 2 & 3: Join and wrap with custom newlines for the desired output format
-            # This creates: [\n\n ROW1, \n ROW2 \n\n]
-            raw_data_json = "[\n\n" + ",\n".join(inner_rows_compact) + "\n\n]"
-    except Exception as e:
-        await m.channel.send(f"Error converting list to JSON: {e}")
-        return
-
-    # 2. Split the JSON string into chunks that fit Discord's message limits
-    max_chunk_size = 1900 - 100 
-    chunks = [raw_data_json[i:i + max_chunk_size] for i in range(0, len(raw_data_json), max_chunk_size)]
-
-    if not chunks:
-        await m.channel.send("The list is currently empty.")
-        return
-
-    # 3. Send the chunks, wrapped in a JSON code block
-    try:
-        await m.add_reaction("📄")
-    except:
-        pass
-
-    for i, chunk in enumerate(chunks):
-        header = f"Raw List Data (Part {i+1}/{len(chunks)})" if len(chunks) > 1 else "Raw List Data"
-        content = f"**{header}**\n```json\n{chunk}\n```"
-        try:
-            await m.channel.send(content)
-        except Exception as e:
-            print(f"Failed to send raw data part {i+1}: {e}")
-            await m.channel.send(f"Error sending part {i+1} of raw data.")
-        await asyncio.sleep(0.5) # Prevent rate-limiting
-    
-    try:
-        await m.add_reaction("✅")
-    except:
-        pass
-
-
-async def handle_main_message_command(m: discord.Message):
-    global main_list_message
-    
-    # Pattern: list.bot main "Message content here"
-    match = re.match(rf'{re.escape(MAIN_MESSAGE_COMMAND_PREFIX)}\s+"([^"]*)"$', m.content.strip(), re.IGNORECASE)
-
-    if not match:
-        await m.channel.send(f"Format: `{MAIN_MESSAGE_COMMAND_PREFIX} \"Your new main message here\"`")
-        return
-
-    new_message = match.group(1).strip()
-    
-    if len(new_message) > 1000:
-         await m.channel.send("The main message must be less than 1000 characters.")
-         return
-    
-    if not new_message:
-        main_list_message = ""
-        action_msg = "The main list message has been **cleared**."
-    else:
-        main_list_message = new_message
-        action_msg = f"The main list message has been updated to:\n> {main_list_message}"
-
-    save_data_list()
-    await m.channel.send(action_msg)
-    await update_all_persistent_list_prompts(force_new=False)
-
-
 async def handle_manual_add_command(m: discord.Message):
     parts = m.content[len(MANUAL_ADD_COMMAND_PREFIX):].strip()
     match = re.fullmatch(r"\"([^\"]+)\"\s+\"([^\"]+)\"(?:\s+(\d+))?", parts)
@@ -699,6 +654,7 @@ async def handle_manual_add_command(m: discord.Message):
     found_idx = -1
     resp = ""
     final_cost = "6"
+    current_epoch = str(int(time.time())) # NEW: Get current epoch time
 
     for i, r in enumerate(data_list):
         if r[0].lower() == item_in.lower():
@@ -716,13 +672,22 @@ async def handle_manual_add_command(m: discord.Message):
             except:
                 final_cost = "1"
         row_to_update[2] = final_cost
+        
+        # NEW: Update the epoch time (4th element)
+        if len(row_to_update) == 4:
+             row_to_update[3] = current_epoch
+        else:
+             row_to_update.append(current_epoch)
+
         data_list.append(row_to_update)
         resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
     else:
         final_cost = cost_s if cost_s else "6"
-        new_row = [item_in, name_in, final_cost]
+        # NEW: Add epoch time for a new row
+        new_row = [item_in, name_in, final_cost, current_epoch]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
+        
     _update_last_changed_details(item_in, name_in, final_cost)
     save_data_list()
     await m.channel.send(resp)
@@ -868,7 +833,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}", Raw:"{RAW_DATA_COMMAND}", Main:"{MAIN_MESSAGE_COMMAND_PREFIX}"')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Close:"{CLOSE_LISTS_COMMAND}"')
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -902,12 +867,6 @@ async def on_message(m: discord.Message):
             return
         if content_lower_stripped == ANNOUNCE_COMMAND.lower():
             await handle_announce_command(m)
-            return
-        if content_lower_stripped == RAW_DATA_COMMAND.lower():
-            await handle_raw_data_command(m)
-            return
-        if content_lower_stripped.startswith(MAIN_MESSAGE_COMMAND_PREFIX.lower()):
-            await handle_main_message_command(m)
             return
         if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()):
             await handle_manual_add_command(m)
