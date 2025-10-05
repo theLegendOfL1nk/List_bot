@@ -26,7 +26,7 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
-RAW_LIST_COMMAND = "list.bot raw" # ADDED: Raw list command
+RAW_LIST_COMMAND = "list.bot raw" 
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -107,7 +107,7 @@ INITIAL_DATA_LIST = [
 
 data_list = []
 
-# Helper function for the new 'Owner' sort
+# Helper function for the new 'Owner' sort (FIXED for stability)
 def sort_by_owner_tally(data):
     if not data:
         return []
@@ -406,31 +406,36 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     sort_details = SORT_CONFIGS[sort_key]
     list_data_source = data_list
     processed_data = []
-
+    
+    # FIX: Define a standardized timestamp line for all list updates
+    current_epoch = int(time.time())
+    # Format F: Full Date/Time; Format R: Relative Time (e.g., 3 minutes ago)
+    timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)" 
+    
     if sort_key == "sort_config_recent":
+        # Processed data is the last MAX_RECENT_ITEMS_TO_SHOW items
         processed_data = list_data_source[-MAX_RECENT_ITEMS_TO_SHOW:]
-        if not processed_data and list_data_source:
-            processed_data = list_data_source
-        elif not processed_data and not list_data_source:
-            empty_msg = "No recent changes, and the list is empty." if is_ephemeral else "The list is currently empty."
-            timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
-            return [f"{empty_msg}\n{timestamp_line}"]
+        
         if not processed_data:
-            empty_msg = "No recent changes to display." if is_ephemeral else "The list is currently empty, so no recent changes."
-            timestamp_line = f"<t:{int(time.time())}:R> (Sorted {sort_details['label']})"
-            return [f"{empty_msg}\n{timestamp_line}"]
-
+            empty_msg = "The list is currently empty. No recent items to display."
+            timestamp_line = f"{empty_msg}\nLast Updated: {timestamp_base} (Sorted {sort_details['label']})"
+            return [timestamp_line]
+        
+        # If the list is not empty, proceed with formatting the recent items
         formatted_text_parts = format_list_for_display(processed_data,
                                                        sort_details["column_order_indices"],
                                                        sort_details["headers"])
     else:
+        # Handling all other sort configurations
         if not list_data_source:
-            timestamp_line = f"<t:{int(time.time())}:R> (List is Empty)"
-            return [f"The list is currently empty.\n{timestamp_line}"]
+            timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
+            return [timestamp_line]
+            
         processed_data = sort_details["sort_lambda"](list_data_source)
+        
         if not processed_data:
-            timestamp_line = f"<t:{int(time.time())}:R> (List is Empty or Filter Produced No Results)"
-            return [f"The list is currently empty (or filter produced no results).\n{timestamp_line}"]
+            timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
+            return [timestamp_line]
 
         formatted_text_parts = format_list_for_display(processed_data,
                                                        sort_details["column_order_indices"],
@@ -445,7 +450,9 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         if len(formatted_text_parts) > 1:
             part_header = f"Part {i+1}/{len(formatted_text_parts)} - "
 
-        timestamp_line = f"<t:{int(time.time())}:R> {part_header}{ts_msg_base}"
+        # NEW: Inject the clear, standardized timestamp
+        timestamp_line = f"Last Updated: {timestamp_base} | {part_header}{ts_msg_base}"
+        
         # Recalculate content length, leaving space for the timestamp and code block
         content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
@@ -814,7 +821,7 @@ async def on_ready():
     load_data_list()
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"') # UPDATED: Added RAW_LIST_COMMAND
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"') 
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -858,7 +865,7 @@ async def on_message(m: discord.Message):
         if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()):
             await handle_say_command(m)
             return
-        if content_lower_stripped == RAW_LIST_COMMAND.lower(): # ADDED: Handle the raw list command
+        if content_lower_stripped == RAW_LIST_COMMAND.lower():
             await handle_raw_list_command(m)
             return
 
