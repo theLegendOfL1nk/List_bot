@@ -46,7 +46,362 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 SECONDS_IN_WEEK = 604800 
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = []
+INITIAL_DATA_LIST = [
+  [
+    "Air",
+    "Recon",
+    "16",
+    1761443245.8180146
+  ],
+  [
+    "Ant Egg",
+    "tianleshan",
+    "6",
+    1757036931
+  ],
+  [
+    "Antennae",
+    "Manfred",
+    "6",
+    1757036931
+  ],
+  [
+    "Bandage",
+    "Mnesia",
+    "1",
+    1760939938.6656551
+  ],
+  [
+    "Battery",
+    "Umit",
+    "3",
+    1757036931
+  ],
+  [
+    "Beetle Egg",
+    "hqyx",
+    "5",
+    1757036931
+  ],
+  [
+    "Bone",
+    "HUDUMOC",
+    "5",
+    1757036931
+  ],
+  [
+    "Bubble",
+    "Recon",
+    "2",
+    1757036931
+  ],
+  [
+    "Cactus",
+    "tianleshan",
+    "2",
+    1757036931
+  ],
+  [
+    "Card",
+    "hqyx",
+    "1",
+    1757036931
+  ],
+  [
+    "Claw",
+    "gainer",
+    "2",
+    1757036931
+  ],
+  [
+    "Clover",
+    "-Sam8375",
+    "44",
+    1757036931
+  ],
+  [
+    "Coin",
+    "Lucasussy",
+    "40",
+    1761434300.1356797
+  ],
+  [
+    "Corn",
+    "-Sam8375",
+    "2",
+    1757036931
+  ],
+  [
+    "Corruption",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Dandelion",
+    "FREEDOM08",
+    "1",
+    1757036931
+  ],
+  [
+    "Dark Mark",
+    "Craft_Super",
+    "1",
+    1757036931
+  ],
+  [
+    "Dice",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Fang",
+    "hqyx",
+    "3",
+    1757036931
+  ],
+  [
+    "Faster",
+    "-Sam8375",
+    "5",
+    1757036931
+  ],
+  [
+    "Glass",
+    "-Sam8375",
+    "25",
+    1757036931
+  ],
+  [
+    "Heavy",
+    "asds",
+    "1",
+    1757036931
+  ],
+  [
+    "Iris",
+    "Craft_Super",
+    "6",
+    1757036931
+  ],
+  [
+    "Jelly",
+    "tarou9n",
+    "2",
+    1757036931
+  ],
+  [
+    "Leaf",
+    "Etin",
+    "4",
+    1760934325.8379474
+  ],
+  [
+    "Light",
+    "Bibi",
+    "3",
+    1757036931
+  ],
+  [
+    "Light Bulb",
+    "BaiLin2",
+    "3",
+    1757036931
+  ],
+  [
+    "Lightning",
+    "Wolxs",
+    "3",
+    1757036931
+  ],
+  [
+    "Magic Cactus",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Magic Leaf",
+    "Manfred",
+    "3",
+    1757036931
+  ],
+  [
+    "Magic Missile",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Magic Stick",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Mana Orb",
+    "BONER_ALERT",
+    "1",
+    1757036931
+  ],
+  [
+    "Mecha Antennae",
+    "Mr_Alex",
+    "1",
+    1757036931
+  ],
+  [
+    "Mecha Missile",
+    "Mario",
+    "1",
+    1757036931
+  ],
+  [
+    "Missile",
+    "Missile",
+    "5",
+    1757036931
+  ],
+  [
+    "Mjölnir",
+    "Manfred",
+    "10",
+    1760981769.362933
+  ],
+  [
+    "Mysterious Relic",
+    "gujiga",
+    "1",
+    1757036931
+  ],
+  [
+    "Mysterious Stick",
+    "BaiLin2",
+    "1",
+    1757036931
+  ],
+  [
+    "Orange",
+    "Solar",
+    "4",
+    1757036931
+  ],
+  [
+    "Pearl",
+    "gachanchall",
+    "1",
+    1757036931
+  ],
+  [
+    "Peas",
+    "WTJ",
+    "1",
+    1757036931
+  ],
+  [
+    "Pharaoh's Crown",
+    "goofycheese",
+    "59",
+    1760979452.5688438
+  ],
+  [
+    "Pincer",
+    "Avril",
+    "3",
+    1757036931
+  ],
+  [
+    "Poker Chip",
+    "Animi",
+    "8",
+    1757036931
+  ],
+  [
+    "Poo",
+    "gainer",
+    "13",
+    1757036931
+  ],
+  [
+    "Privet Berry",
+    "Avril",
+    "5",
+    1761345293.1224608
+  ],
+  [
+    "Rice",
+    "Manfred",
+    "1",
+    1757036931
+  ],
+  [
+    "Rock",
+    "Wolxs",
+    "2",
+    1757036931
+  ],
+  [
+    "Salt",
+    "tarou9n",
+    "1",
+    1757036931
+  ],
+  [
+    "Sand",
+    "Zorat",
+    "13",
+    1757036931
+  ],
+  [
+    "Starfish",
+    "CarrotJuice",
+    "2",
+    1757036931
+  ],
+  [
+    "Talisman of Evasion",
+    "gainer",
+    "6",
+    1757036931
+  ],
+  [
+    "Totem",
+    "BONER_ALERT",
+    "1",
+    1757036931
+  ],
+  [
+    "Triangle",
+    "gujiga",
+    "7",
+    1761437077.2734945
+  ],
+  [
+    "Wax",
+    "ProH",
+    "1",
+    1757036931
+  ],
+  [
+    "Web",
+    "Manfred",
+    "5",
+    1757036931
+  ],
+  [
+    "Wing",
+    "gainer",
+    "24",
+    1757036931
+  ],
+  [
+    "Yucca",
+    "LegendaryL",
+    "10",
+    1761445464.3322299
+  ]
+]
 
 data_list = []
 
@@ -103,17 +458,17 @@ SORT_CONFIGS = {
 UPDATE_NOTIFICATION_CONFIG = [
     {
         "channel_id": 1349793261908262942,
-        "message_format": "{item_val} - {name_val}\n{role_ping}",
+        "message_format": "{item_val} - {name_val} - {cost_val}\n{role_ping}",
         "role_id_to_ping": 1357477336282566766
     },
     {
         "channel_id": 1378070194148217012,
-        "message_format": "{name_val} - {item_val}\n{role_ping}",
+        "message_format": "{name_val} - {item_val} - {cost_val}\n{role_ping}",
         "role_id_to_ping": 1378071231252926514
     },
     {
         "channel_id": 1383418429460971520,
-        "message_format": "{name_val} - {item_val}\n{role_ping}",
+        "message_format": "{name_val} - {item_val} - {cost_val}\n{role_ping}",
         "role_id_to_ping": 1271018797238583337
     },
 ]
