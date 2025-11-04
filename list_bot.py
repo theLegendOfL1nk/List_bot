@@ -264,7 +264,7 @@ INITIAL_DATA_LIST = [
     1757036931
   ],
   [
-    "Mjölnir",
+    "Mj\u00f6lnir",
     "Manfred",
     "10",
     1760981769.362933
@@ -285,12 +285,6 @@ INITIAL_DATA_LIST = [
     "Orange",
     "Solar",
     "4",
-    1757036931
-  ],
-  [
-    "Pearl",
-    "gachanchall",
-    "1",
     1757036931
   ],
   [
@@ -377,8 +371,7 @@ INITIAL_DATA_LIST = [
     "7",
     1761437077.2734945
   ],
-  [
-    "Wax",
+  [    "Wax",
     "ProH",
     "1",
     1757036931
@@ -400,6 +393,12 @@ INITIAL_DATA_LIST = [
     "LegendaryL",
     "10",
     1761445464.3322299
+  ],
+  [
+    "Pearl",
+    "Rubberman",
+    "2",
+    1762289135.5714347
   ]
 ]
 
@@ -640,7 +639,7 @@ def _update_last_changed_details(item_val, name_val, cost_val):
 def update_data_for_auto(item_val, name_val):
     global data_list
     found_idx = -1
-    final_cost = "6"
+    final_cost = "1"
     for i, row in enumerate(data_list):
         if row[0].lower() == item_val.lower():
             found_idx = i
@@ -918,7 +917,7 @@ async def handle_manual_add_command(m: discord.Message):
     global data_list
     found_idx = -1
     resp = ""
-    final_cost = "6"
+    final_cost = "1"
 
     for i, r in enumerate(data_list):
         if r[0].lower() == item_in.lower():
@@ -943,7 +942,7 @@ async def handle_manual_add_command(m: discord.Message):
         data_list.append(row_to_update)
         resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
     else:
-        final_cost = cost_s if cost_s else "6"
+        final_cost = cost_s if cost_s else "1"
         # NEW: Add timestamp
         new_row = [item_in, name_in, final_cost, current_time_epoch]
         data_list.append(new_row)
