@@ -26,7 +26,8 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
-RAW_LIST_COMMAND = "list.bot raw" 
+RAW_LIST_COMMAND = "list.bot raw"
+SEND_MESSAGE_COMMAND_PREFIX = "list.bot message" # <- NEW COMMAND
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -39,370 +40,28 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
-channel_list_states = {}
+# GLOBAL VARIABLES FOR PERSISTENT DATA
+data_list = []
+channel_list_states = {} # This state data will now be saved to the file
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 
-# CHANGED: 7 days in seconds for the new Recent filter
-SECONDS_IN_WEEK = 604800 
+SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = [
-  [
-    "Air",
-    "Recon",
-    "16",
-    1761443245.8180146
-  ],
-  [
-    "Ant Egg",
-    "tianleshan",
-    "6",
-    1757036931
-  ],
-  [
-    "Antennae",
-    "Manfred",
-    "6",
-    1757036931
-  ],
-  [
-    "Bandage",
-    "Mnesia",
-    "1",
-    1760939938.6656551
-  ],
-  [
-    "Battery",
-    "Umit",
-    "3",
-    1757036931
-  ],
-  [
-    "Beetle Egg",
-    "hqyx",
-    "5",
-    1757036931
-  ],
-  [
-    "Bone",
-    "HUDUMOC",
-    "5",
-    1757036931
-  ],
-  [
-    "Bubble",
-    "Recon",
-    "2",
-    1757036931
-  ],
-  [
-    "Cactus",
-    "tianleshan",
-    "2",
-    1757036931
-  ],
-  [
-    "Card",
-    "hqyx",
-    "1",
-    1757036931
-  ],
-  [
-    "Claw",
-    "gainer",
-    "2",
-    1757036931
-  ],
-  [
-    "Clover",
-    "-Sam8375",
-    "44",
-    1757036931
-  ],
-  [
-    "Coin",
-    "Lucasussy",
-    "40",
-    1761434300.1356797
-  ],
-  [
-    "Corn",
-    "-Sam8375",
-    "2",
-    1757036931
-  ],
-  [
-    "Corruption",
-    "Pehiley",
-    "1",
-    1757036931
-  ],
-  [
-    "Dandelion",
-    "FREEDOM08",
-    "1",
-    1757036931
-  ],
-  [
-    "Dark Mark",
-    "Craft_Super",
-    "1",
-    1757036931
-  ],
-  [
-    "Dice",
-    "Pehiley",
-    "1",
-    1757036931
-  ],
-  [
-    "Fang",
-    "hqyx",
-    "3",
-    1757036931
-  ],
-  [
-    "Faster",
-    "-Sam8375",
-    "5",
-    1757036931
-  ],
-  [
-    "Glass",
-    "-Sam8375",
-    "25",
-    1757036931
-  ],
-  [
-    "Heavy",
-    "asds",
-    "1",
-    1757036931
-  ],
-  [
-    "Iris",
-    "Craft_Super",
-    "6",
-    1757036931
-  ],
-  [
-    "Jelly",
-    "tarou9n",
-    "2",
-    1757036931
-  ],
-  [
-    "Leaf",
-    "Etin",
-    "4",
-    1760934325.8379474
-  ],
-  [
-    "Light",
-    "Bibi",
-    "3",
-    1757036931
-  ],
-  [
-    "Light Bulb",
-    "BaiLin2",
-    "3",
-    1757036931
-  ],
-  [
-    "Lightning",
-    "Wolxs",
-    "3",
-    1757036931
-  ],
-  [
-    "Magic Cactus",
-    "Pehiley",
-    "1",
-    1757036931
-  ],
-  [
-    "Magic Leaf",
-    "Manfred",
-    "3",
-    1757036931
-  ],
-  [
-    "Magic Missile",
-    "Pehiley",
-    "1",
-    1757036931
-  ],
-  [
-    "Magic Stick",
-    "Pehiley",
-    "1",
-    1757036931
-  ],
-  [
-    "Mana Orb",
-    "BONER_ALERT",
-    "1",
-    1757036931
-  ],
-  [
-    "Mecha Antennae",
-    "Mr_Alex",
-    "1",
-    1757036931
-  ],
-  [
-    "Mecha Missile",
-    "Mario",
-    "1",
-    1757036931
-  ],
-  [
-    "Missile",
-    "Missile",
-    "5",
-    1757036931
-  ],
-  [
-    "Mj\u00f6lnir",
-    "Manfred",
-    "10",
-    1760981769.362933
-  ],
-  [
-    "Mysterious Relic",
-    "gujiga",
-    "1",
-    1757036931
-  ],
-  [
-    "Mysterious Stick",
-    "BaiLin2",
-    "1",
-    1757036931
-  ],
-  [
-    "Orange",
-    "Solar",
-    "4",
-    1757036931
-  ],
-  [
-    "Peas",
-    "WTJ",
-    "1",
-    1757036931
-  ],
-  [
-    "Pharaoh's Crown",
-    "goofycheese",
-    "59",
-    1760979452.5688438
-  ],
-  [
-    "Pincer",
-    "Avril",
-    "3",
-    1757036931
-  ],
-  [
-    "Poker Chip",
-    "Animi",
-    "8",
-    1757036931
-  ],
-  [
-    "Poo",
-    "gainer",
-    "13",
-    1757036931
-  ],
-  [
-    "Privet Berry",
-    "Avril",
-    "5",
-    1761345293.1224608
-  ],
-  [
-    "Rice",
-    "Manfred",
-    "1",
-    1757036931
-  ],
-  [
-    "Rock",
-    "Wolxs",
-    "2",
-    1757036931
-  ],
-  [
-    "Salt",
-    "tarou9n",
-    "1",
-    1757036931
-  ],
-  [
-    "Sand",
-    "Zorat",
-    "13",
-    1757036931
-  ],
-  [
-    "Starfish",
-    "CarrotJuice",
-    "2",
-    1757036931
-  ],
-  [
-    "Talisman of Evasion",
-    "gainer",
-    "6",
-    1757036931
-  ],
-  [
-    "Totem",
-    "BONER_ALERT",
-    "1",
-    1757036931
-  ],
-  [
-    "Triangle",
-    "gujiga",
-    "7",
-    1761437077.2734945
-  ],
-  [    "Wax",
-    "ProH",
-    "1",
-    1757036931
-  ],
-  [
-    "Web",
-    "Manfred",
-    "5",
-    1757036931
-  ],
-  [
-    "Wing",
-    "gainer",
-    "24",
-    1757036931
-  ],
-  [
-    "Yucca",
-    "LegendaryL",
-    "10",
-    1761445464.3322299
-  ],
-  [
-    "Pearl",
-    "Rubberman",
-    "2",
-    1762289135.5714347
-  ]
-]
+INITIAL_DATA_LIST = []
 
-data_list = []
+
+# --- END CONFIGURATION (except for initial data) ---
+
+
+intents = discord.Intents.default()
+intents.messages = True
+intents.message_content = True
+intents.guilds = True
+client = discord.Client(intents=intents)
+
+last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
+view_message_tracker = {}
 
 # Helper function for the new 'Owner' sort (FIXED for stability)
 def sort_by_owner_tally(data):
@@ -415,7 +74,7 @@ def sort_by_owner_tally(data):
         try:
             cost = int(row[2])
         except (IndexError, ValueError):
-            cost = 0 
+            cost = 0
         return (-name_counts[name], name, -cost)
     return sorted(data, key=custom_sort_key)
 
@@ -442,7 +101,7 @@ SORT_CONFIGS = {
         "label": "by Recent (Last 7 Days)", "button_label": "Sort: Recent",
         # CHANGED: The lambda filters items where the timestamp (index 3) is within the last 7 days, and reverses the result to show newest first.
         "sort_lambda": lambda data: [
-            row for row in data 
+            row for row in data
             if len(row) > 3 and row[3] >= (time.time() - SECONDS_IN_WEEK)
         ][::-1],
         "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (7 Days)"]
@@ -473,35 +132,51 @@ UPDATE_NOTIFICATION_CONFIG = [
 ]
 # --- END CONFIGURATION ---
 
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-intents.guilds = True
-client = discord.Client(intents=intents)
-
-last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
-view_message_tracker = {}
 
 # Functions for data persistence
+
 def load_data_list():
+    """
+    Loads item list data AND channel state data from the JSON file.
+    """
     global data_list
+    global channel_list_states # ADDED
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 loaded_data = json.load(f)
-                if isinstance(loaded_data, list):
+
+                # --- Load Item List Data ---
+                if isinstance(loaded_data, dict) and "list_data" in loaded_data and isinstance(loaded_data["list_data"], list):
+                    data_list = loaded_data["list_data"]
+                    print(f"Successfully loaded {len(data_list)} items from 'list_data' in {DATA_FILE}")
+                elif isinstance(loaded_data, list): # Backward compatibility for old format
                     data_list = loaded_data
-                    print(f"Successfully loaded {len(data_list)} items from {DATA_FILE}")
+                    print(f"Successfully loaded {len(data_list)} items from old format in {DATA_FILE}")
                 else:
-                    print(f"ERROR: {DATA_FILE} is corrupted or invalid. Initializing with hardcoded data.")
+                    print(f"ERROR: 'list_data' in {DATA_FILE} is corrupted or invalid. Initializing with hardcoded data.")
                     data_list = list(INITIAL_DATA_LIST)
+
+                # --- Load State Data (New Permanent State) ---
+                if isinstance(loaded_data, dict) and "state_data" in loaded_data and isinstance(loaded_data["state_data"], dict):
+                    # Ensure keys are integers if they were stored as strings
+                    raw_states = loaded_data["state_data"].get("channel_list_states", {})
+                    channel_list_states = {int(k): v for k, v in raw_states.items() if str(k).isdigit()}
+
+                    print(f"Successfully loaded state data for {len(channel_list_states)} channels.")
+                else:
+                    print(f"WARNING: No 'state_data' found in {DATA_FILE}. Initializing channel states to empty.")
+                    channel_list_states = {}
+
         except (IOError, json.JSONDecodeError) as e:
-            print(f"ERROR loading data from {DATA_FILE}: {e}. Initializing with hardcoded data.")
+            print(f"ERROR loading data from {DATA_FILE}: {e}. Initializing with hardcoded data and empty states.")
             data_list = list(INITIAL_DATA_LIST)
+            channel_list_states = {} # Ensure it's clean on error
     else:
-        print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data.")
+        print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data and empty states.")
         data_list = list(INITIAL_DATA_LIST)
-    
+        channel_list_states = {}
+
     # NEW LOGIC: Ensure all rows have a timestamp (index 3) for the new Recent filter
     for row in data_list:
         if len(row) > 2:
@@ -512,13 +187,26 @@ def load_data_list():
             row.append(0)
 
 def save_data_list():
+    """
+    Saves item list data AND channel state data to the JSON file.
+    """
     global data_list
+    global channel_list_states # ADDED
+
+    data_to_save = {
+        "list_data": data_list,
+        "state_data": {
+            "channel_list_states": channel_list_states
+        }
+    }
+
     try:
         temp_data_file = DATA_FILE + ".tmp"
         with open(temp_data_file, "w") as f:
-            json.dump(data_list, f, indent=4)
+            # Save the combined dictionary
+            json.dump(data_to_save, f, indent=4)
         os.replace(temp_data_file, DATA_FILE)
-        print(f"Successfully saved {len(data_list)} items to {DATA_FILE}.")
+        print(f"Successfully saved {len(data_list)} items and {len(channel_list_states)} channel states to {DATA_FILE}.")
     except (IOError, TypeError) as e:
         print(f"ERROR: Failed to save data to {DATA_FILE}: {e}")
 
@@ -644,9 +332,9 @@ def update_data_for_auto(item_val, name_val):
         if row[0].lower() == item_val.lower():
             found_idx = i
             break
-    
+
     current_time_epoch = time.time()
-    
+
     if found_idx != -1:
         existing_row = data_list.pop(found_idx)
         existing_row[1] = name_val
@@ -662,7 +350,7 @@ def update_data_for_auto(item_val, name_val):
         # NEW: Add timestamp
         new_row = [item_val, name_val, final_cost, current_time_epoch]
         data_list.append(new_row)
-        
+
     _update_last_changed_details(item_val, name_val, final_cost)
     save_data_list()
     print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
@@ -690,7 +378,7 @@ def format_list_for_display(data, col_indices, headers):
     if total_line_length > MAX_MESSAGE_LENGTH - 50:
         padding = [1] * len(widths)
         total_line_length = sum(widths) + sum(padding) - padding[-1]
-    
+
     # Create the header line
     header_line = " ".join(f"{headers[i]:<{widths[i]}}" for i in range(len(headers)))
 
@@ -701,7 +389,7 @@ def format_list_for_display(data, col_indices, headers):
     for row in data:
         disp_row = [str(row[i]) for i in col_indices]
         line = " ".join(f"{disp_row[i]:<{widths[i]}}" for i in range(len(headers)))
-        
+
         # Check if adding the new line will exceed the max length
         if current_length + len(line) + 1 + 100 > MAX_MESSAGE_LENGTH:
             message_parts.append("\n".join(current_part_lines))
@@ -710,7 +398,7 @@ def format_list_for_display(data, col_indices, headers):
         else:
             current_part_lines.append(line)
             current_length += len(line) + 1
-    
+
     if current_part_lines:
         message_parts.append("\n".join(current_part_lines))
 
@@ -720,20 +408,20 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     sort_details = SORT_CONFIGS[sort_key]
     list_data_source = data_list
     processed_data = []
-    
+
     # Define a standardized timestamp line for all list updates
     current_epoch = int(time.time())
-    timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)" 
-    
+    timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)"
+
     if sort_key == "sort_config_recent":
         # Processed data is filtered by the 7-day lambda defined in SORT_CONFIGS
         processed_data = sort_details["sort_lambda"](list_data_source)
-        
+
         if not processed_data:
             empty_msg = "No items have been updated in the last 7 days."
             timestamp_line = f"{empty_msg}\nLast Updated: {timestamp_base} (Sorted {sort_details['label']})"
             return [timestamp_line]
-        
+
         formatted_text_parts = format_list_for_display(processed_data,
                                                        sort_details["column_order_indices"],
                                                        sort_details["headers"])
@@ -742,9 +430,9 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         if not list_data_source:
             timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
             return [timestamp_line]
-            
+
         processed_data = sort_details["sort_lambda"](list_data_source)
-        
+
         if not processed_data:
             timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
             return [timestamp_line]
@@ -764,7 +452,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
         # Inject the clear, standardized timestamp
         timestamp_line = f"Last Updated: {timestamp_base} | {part_header}{ts_msg_base}"
-        
+
         # Recalculate content length, leaving space for the timestamp and code block
         content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
@@ -779,6 +467,9 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
 
 async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new: bool = False):
+    """
+    Handles editing or sending the list prompt messages, and saves state when message IDs change.
+    """
     global channel_list_states
     if target_channel_id not in channel_list_states:
         channel_list_states[target_channel_id] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
@@ -789,13 +480,18 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     channel = client.get_channel(target_channel_id)
     if not channel:
-        state["message_ids"] = []
+        if state["message_ids"]:
+            state["message_ids"] = []
+            save_data_list() # SAVE: Channel disappeared, so state must be cleared.
         return
 
     content_parts = format_sorted_list_content(default_sort, is_ephemeral=False)
     view = PersistentListPromptView(target_channel_id=target_channel_id)
 
+    ids_changed = False # Flag to track if the set of message IDs has been altered
+
     if force_new or len(msg_ids) != len(content_parts):
+        ids_changed = True
         for msg_id in msg_ids:
             try:
                 old_msg = await channel.fetch_message(msg_id)
@@ -804,14 +500,16 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                 pass
             if msg_id in view_message_tracker:
                 del view_message_tracker[msg_id]
-        state["message_ids"] = []
         msg_ids = []
+        state["message_ids"] = []
 
     sent_messages = []
     for i, content in enumerate(content_parts):
+        # Existing logic to edit or send new messages
         if i < len(msg_ids):
             try:
                 m = await channel.fetch_message(msg_ids[i])
+                # If message is found, try to edit (less likely to set ids_changed=True)
                 if i == 0:
                     await m.edit(content=content, view=view)
                     view_message_tracker[m.id] = ("PersistentListPromptView", target_channel_id)
@@ -819,26 +517,29 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                     await m.edit(content=content, view=None)
                 sent_messages.append(m.id)
             except discord.NotFound:
+                # If message not found, we send a new one
+                ids_changed = True
                 new_m = None
-                if i == 0:
+                if i == 0 and not sent_messages:
                     new_m = await channel.send(content=content, view=view)
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
                 else:
                     new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
             except Exception as e:
-                print(f"Error editing/sending part {i} of persistent prompt in {target_channel_id}: {e}")
-                try:
-                    new_m = None
-                    if i == 0:
-                        new_m = await channel.send(content=content, view=view)
-                        view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
-                    else:
-                        new_m = await channel.send(content=content, view=None)
-                    sent_messages.append(new_m.id)
-                except Exception as e2:
-                    print(f"Critical: Failed to send new message for part {i} in {target_channel_id}: {e2}")
+                # On edit error, send a new message as a fallback
+                ids_changed = True
+                print(f"Error editing message {msg_ids[i]} in {target_channel_id}, sending new one: {e}")
+                new_m = None
+                if i == 0 and not sent_messages:
+                    new_m = await channel.send(content=content, view=view)
+                    view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
+                else:
+                    new_m = await channel.send(content=content, view=None)
+                sent_messages.append(new_m.id)
         else:
+            # New message must be sent (list grew)
+            ids_changed = True
             try:
                 new_m = None
                 if i == 0 and not msg_ids:
@@ -852,7 +553,9 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
         await asyncio.sleep(0.5)
 
+    # Delete any leftover messages if the list shrunk
     for old_msg_id in msg_ids[len(content_parts):]:
+        ids_changed = True
         try:
             old_msg = await channel.fetch_message(old_msg_id)
             await old_msg.delete()
@@ -861,17 +564,31 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
         if old_msg_id in view_message_tracker:
             del view_message_tracker[old_msg_id]
 
+    # Check for final message ID list change (e.g., failed edit resulted in a new ID)
+    if set(state["message_ids"]) != set(sent_messages):
+        ids_changed = True
+
+    # Finalize state update
     state["message_ids"] = sent_messages
+
+    if ids_changed:
+        save_data_list() # <--- CRITICAL: SAVE THE STATE HERE
 
 
 async def update_all_persistent_list_prompts(force_new: bool = False):
+    """
+    Iterates through all configured channels and calls the update/edit function.
+    """
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
         if cid and isinstance(cid, int):
+            # force_new=False means it will try to EDIT existing messages based on the loaded IDs.
             await send_or_edit_persistent_list_prompt(cid, force_new)
         await asyncio.sleep(1)
 
-
 async def clear_all_persistent_list_prompts():
+    """
+    Deletes all messages and clears the state in memory AND file.
+    """
     for cid in list(channel_list_states.keys()):
         state = channel_list_states[cid]
         msg_ids = state.get("message_ids", [])
@@ -892,14 +609,27 @@ async def clear_all_persistent_list_prompts():
             await asyncio.sleep(0.5)
         state["message_ids"] = []
 
+    # CRITICAL: Save the empty state
+    save_data_list()
+
 
 async def handle_restart_command(m: discord.Message):
+    """
+    Forces a complete delete and re-create of the list messages.
+    """
     try:
         await m.add_reaction("🔄")
-        await clear_all_persistent_list_prompts()
-    except:
-        pass
-    await update_all_persistent_list_prompts(force_new=True)
+        # Unlike a normal bot restart, this command FORCES a delete and recreate
+        # to ensure any corrupted messages are fixed.
+        await update_all_persistent_list_prompts(force_new=True)
+    except Exception as e:
+        await m.channel.send(f"Restart failed: {e}")
+        try:
+            await m.add_reaction("❌")
+        except:
+            pass
+        return
+
     try:
         await m.add_reaction("✅")
     except:
@@ -925,7 +655,7 @@ async def handle_manual_add_command(m: discord.Message):
             break
 
     current_time_epoch = time.time()
-    
+
     if found_idx != -1:
         row_to_update = data_list.pop(found_idx)
         row_to_update[1] = name_in
@@ -947,7 +677,7 @@ async def handle_manual_add_command(m: discord.Message):
         new_row = [item_in, name_in, final_cost, current_time_epoch]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
-        
+
     _update_last_changed_details(item_in, name_in, final_cost)
     save_data_list()
     await m.channel.send(resp)
@@ -1033,6 +763,78 @@ async def handle_say_command(message: discord.Message):
             pass
 
 
+async def handle_send_message_command(message: discord.Message):
+    """
+    Handles the 'list.bot message "Server Name" "Channel Name" "Your message"' command.
+    It finds the guild by name, then the channel by name, and sends the message.
+    """
+    # Regex to capture three quoted arguments: "arg1" "arg2" "arg3"
+    match = re.match(
+        rf'{re.escape(SEND_MESSAGE_COMMAND_PREFIX)}\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"$',
+        message.content.strip(),
+        re.IGNORECASE
+    )
+
+    if not match:
+        await message.channel.send(
+            f"Format Error. Correct format: `{SEND_MESSAGE_COMMAND_PREFIX} \"Server Name\" \"Channel Name\" \"Your message here\"`"
+        )
+        return
+
+    server_name, channel_name, message_to_send = match.groups()
+
+    if not server_name or not channel_name or not message_to_send:
+        await message.channel.send("All three parts (Server Name, Channel Name, Message) must be provided and cannot be empty.")
+        return
+
+    # 1. Find the Guild (Server)
+    target_guild = discord.utils.get(client.guilds, name=server_name)
+    if not target_guild:
+        await message.channel.send(f"❌ Server not found: **{server_name}**.")
+        return
+
+    # 2. Find the Channel
+    # Search for a TextChannel by name (case-insensitive) in the target guild
+    target_channel = discord.utils.get(
+        target_guild.text_channels,
+        name=channel_name.lower()
+    )
+
+    # Also check if the channel name is actually an ID for robust use
+    if not target_channel:
+        try:
+            channel_id = int(channel_name)
+            target_channel = target_guild.get_channel(channel_id)
+        except ValueError:
+            pass # Not an ID, continue to 'not found' message
+
+    if not target_channel:
+        await message.channel.send(
+            f"❌ Channel not found: **{channel_name}** in Server **{server_name}**. "
+            "Note: The channel name must be exactly correct (case-insensitive search)."
+        )
+        return
+
+    # 3. Send the Message
+    try:
+        await target_channel.send(message_to_say)
+
+        await message.channel.send(
+            f"✅ Sent message to channel **#{target_channel.name}** in server **{target_guild.name}**."
+        )
+        try:
+            await message.add_reaction("✅")
+        except:
+            pass
+
+    except discord.Forbidden:
+        await message.channel.send(
+            f"❌ Bot does not have permission to send messages in **#{target_channel.name}**."
+        )
+    except Exception as e:
+        await message.channel.send(f"❌ An error occurred while sending the message: `{e}`")
+
+
 async def handle_close_lists_command(m: discord.Message):
     try:
         await m.add_reaction("🗑️")
@@ -1049,17 +851,17 @@ async def handle_close_lists_command(m: discord.Message):
 async def handle_raw_list_command(m: discord.Message):
     """Handles the 'list.bot raw' command by dumping data_list as JSON and splitting into multiple messages if needed."""
     global data_list
-    
+
     if not data_list:
         await m.channel.send("`data_list` is empty.")
         return
 
     # Dump the data_list to a JSON string with an indent for readability
     raw_json = json.dumps(data_list, indent=2)
-    
+
     # Target maximum content size inside the code block is 1850 (1900 - 50 for overhead).
-    MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150 
-    
+    MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150
+
     # Split the raw_json string into chunks
     chunks = []
     i = 0
@@ -1072,19 +874,19 @@ async def handle_raw_list_command(m: discord.Message):
 
     for i, chunk in enumerate(chunks):
         part_number = i + 1
-        
+
         # Add a descriptive header for multi-part messages
         if total_parts > 1:
             header_text = f"Raw List Data (Part {part_number}/{total_parts})"
         else:
             header_text = "Raw List Data"
 
-        # Construct the final message with code block. 
+        # Construct the final message with code block.
         msg_content = f"{header_text}\n```json\n{chunk}\n```"
-        
+
         await m.channel.send(msg_content)
         # Add a slight delay between messages to avoid rate-limiting
-        await asyncio.sleep(0.5) 
+        await asyncio.sleep(0.5)
 
     try:
         await m.add_reaction("✅")
@@ -1136,24 +938,25 @@ async def on_ready():
     last_on_ready_timestamp = current_time
 
     print(f'{client.user.name} ({client.user.id}) connected!')
-    print("Loading data from file...")
-    load_data_list()
+    
+    # The order is crucial:
+    print("Loading data and persistent message IDs from file...")
+    load_data_list() # <--- Loads both item data and channel state IDs.
+
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"') 
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Message:"{SEND_MESSAGE_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
 
-    print("Initializing channel states for persistent views...")
+    print("Initializing channel states...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
         if cid == 0 or not isinstance(cid, int):
             continue
+        # Ensure new channels get a state if not loaded
         if cid not in channel_list_states:
             channel_list_states[cid] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
-        state = channel_list_states[cid]
-        msg_ids = state.get("message_ids", [])
-        if msg_ids:
-            print(f"INFO: Channel {cid} has stored message IDs {msg_ids}. It will be handled by update_all_persistent_list_prompts.")
 
-    print("Ensuring persistent list prompts are up-to-date or posted.")
+    print("Ensuring persistent list prompts are up-to-date (editing existing messages).")
+    # force_new=False uses the loaded message IDs to EDIT the existing messages.
     await update_all_persistent_list_prompts(force_new=False)
 
 
@@ -1187,6 +990,11 @@ async def on_message(m: discord.Message):
         if content_lower_stripped == RAW_LIST_COMMAND.lower():
             await handle_raw_list_command(m)
             return
+        # NEW COMMAND HANDLER: list.bot message "Server" "Channel" "Message"
+        if content_lower_stripped.startswith(SEND_MESSAGE_COMMAND_PREFIX.lower()):
+            await handle_send_message_command(m)
+            return
+        # END NEW COMMAND HANDLER
 
     if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
