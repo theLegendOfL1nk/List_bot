@@ -27,7 +27,7 @@ ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
 RAW_LIST_COMMAND = "list.bot raw"
-MESSAGE_COMMAND_PREFIX = "list.bot message" # <- GLOBAL BROADCAST COMMAND
+MESSAGE_COMMAND_PREFIX = "list.bot message" # <- TARGETED MESSAGE SENDER
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -48,8 +48,361 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = []
-
+INITIAL_DATA_LIST = [
+  [
+    "Air",
+    "Recon",
+    "16",
+    1761443245.8180146
+  ],
+  [
+    "Ant Egg",
+    "tianleshan",
+    "6",
+    1757036931
+  ],
+  [
+    "Antennae",
+    "Manfred",
+    "6",
+    1757036931
+  ],
+  [
+    "Bandage",
+    "Mnesia",
+    "1",
+    1760939938.6656551
+  ],
+  [
+    "Battery",
+    "Umit",
+    "3",
+    1757036931
+  ],
+  [
+    "Beetle Egg",
+    "hqyx",
+    "5",
+    1757036931
+  ],
+  [
+    "Bone",
+    "HUDUMOC",
+    "5",
+    1757036931
+  ],
+  [
+    "Bubble",
+    "Recon",
+    "2",
+    1757036931
+  ],
+  [
+    "Cactus",
+    "tianleshan",
+    "2",
+    1757036931
+  ],
+  [
+    "Card",
+    "hqyx",
+    "1",
+    1757036931
+  ],
+  [
+    "Claw",
+    "gainer",
+    "2",
+    1757036931
+  ],
+  [
+    "Clover",
+    "-Sam8375",
+    "44",
+    1757036931
+  ],
+  [
+    "Coin",
+    "Lucasussy",
+    "40",
+    1761434300.1356797
+  ],
+  [
+    "Corn",
+    "-Sam8375",
+    "2",
+    1757036931
+  ],
+  [
+    "Corruption",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Dandelion",
+    "FREEDOM08",
+    "1",
+    1757036931
+  ],
+  [
+    "Dark Mark",
+    "Craft_Super",
+    "1",
+    1757036931
+  ],
+  [
+    "Dice",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Fang",
+    "hqyx",
+    "3",
+    1757036931
+  ],
+  [
+    "Faster",
+    "-Sam8375",
+    "5",
+    1757036931
+  ],
+  [
+    "Glass",
+    "-Sam8375",
+    "25",
+    1757036931
+  ],
+  [
+    "Heavy",
+    "asds",
+    "1",
+    1757036931
+  ],
+  [
+    "Iris",
+    "Craft_Super",
+    "6",
+    1757036931
+  ],
+  [
+    "Jelly",
+    "tarou9n",
+    "2",
+    1757036931
+  ],
+  [
+    "Leaf",
+    "Etin",
+    "4",
+    1760934325.8379474
+  ],
+  [
+    "Light",
+    "Bibi",
+    "3",
+    1757036931
+  ],
+  [
+    "Light Bulb",
+    "BaiLin2",
+    "3",
+    1757036931
+  ],
+  [
+    "Lightning",
+    "Wolxs",
+    "3",
+    1757036931
+  ],
+  [
+    "Magic Cactus",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Magic Leaf",
+    "Manfred",
+    "3",
+    1757036931
+  ],
+  [
+    "Magic Missile",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Magic Stick",
+    "Pehiley",
+    "1",
+    1757036931
+  ],
+  [
+    "Mana Orb",
+    "BONER_ALERT",
+    "1",
+    1757036931
+  ],
+  [
+    "Mecha Antennae",
+    "Mr_Alex",
+    "1",
+    1757036931
+  ],
+  [
+    "Mecha Missile",
+    "Mario",
+    "1",
+    1757036931
+  ],
+  [
+    "Missile",
+    "Missile",
+    "5",
+    1757036931
+  ],
+  [
+    "Mj\u00f6lnir",
+    "Manfred",
+    "10",
+    1760981769.362933
+  ],
+  [
+    "Mysterious Relic",
+    "gujiga",
+    "1",
+    1757036931
+  ],
+  [
+    "Mysterious Stick",
+    "BaiLin2",
+    "1",
+    1757036931
+  ],
+  [
+    "Orange",
+    "Solar",
+    "4",
+    1757036931
+  ],
+  [
+    "Peas",
+    "WTJ",
+    "1",
+    1757036931
+  ],
+  [
+    "Pharaoh's Crown",
+    "goofycheese",
+    "59",
+    1760979452.5688438
+  ],
+  [
+    "Pincer",
+    "Avril",
+    "3",
+    1757036931
+  ],
+  [
+    "Poker Chip",
+    "Animi",
+    "8",
+    1757036931
+  ],
+  [
+    "Poo",
+    "gainer",
+    "13",
+    1757036931
+  ],
+  [
+    "Privet Berry",
+    "Avril",
+    "5",
+    1761345293.1224608
+  ],
+  [
+    "Rice",
+    "Manfred",
+    "1",
+    1757036931
+  ],
+  [
+    "Rock",
+    "Wolxs",
+    "2",
+    1757036931
+  ],
+  [
+    "Salt",
+    "tarou9n",
+    "1",
+    1757036931
+  ],
+  [
+    "Sand",
+    "Zorat",
+    "13",
+    1757036931
+  ],
+  [
+    "Starfish",
+    "CarrotJuice",
+    "2",
+    1757036931
+  ],
+  [
+    "Talisman of Evasion",
+    "gainer",
+    "6",
+    1757036931
+  ],
+  [
+    "Totem",
+    "BONER_ALERT",
+    "1",
+    1757036931
+  ],
+  [
+    "Triangle",
+    "gujiga",
+    "7",
+    1761437077.2734945
+  ],
+  [    "Wax",
+    "ProH",
+    "1",
+    1757036931
+  ],
+  [
+    "Web",
+    "Manfred",
+    "5",
+    1757036931
+  ],
+  [
+    "Wing",
+    "gainer",
+    "24",
+    1757036931
+  ],
+  [
+    "Yucca",
+    "LegendaryL",
+    "10",
+    1761445464.3322299
+  ],
+  [
+    "Pearl",
+    "Rubberman",
+    "2",
+    1762289135.5714347
+  ]
+]
 # --- END CONFIGURATION (except for initial data) ---
 
 
@@ -112,6 +465,7 @@ SORT_CONFIGS = {
     }
 }
 
+# NOTE: Set channel_id to 0 to disable that notification channel.
 UPDATE_NOTIFICATION_CONFIG = [
     {
         "channel_id": 1349793261908262942,
@@ -139,7 +493,7 @@ def load_data_list():
     Loads item list data AND channel state data from the JSON file.
     """
     global data_list
-    global channel_list_states # ADDED
+    global channel_list_states
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
@@ -190,7 +544,7 @@ def save_data_list():
     Saves item list data AND channel state data to the JSON file.
     """
     global data_list
-    global channel_list_states # ADDED
+    global channel_list_states
 
     data_to_save = {
         "list_data": data_list,
@@ -278,7 +632,7 @@ class PersistentListPromptView(View):
                     )
                     await log_channel.send(log_message)
                 except discord.Forbidden:
-                    print(f"Log Error: No permission to send messages in log channel {EPHEHERMAL_REQUEST_LOG_CHANNEL_ID}.")
+                    print(f"Log Error: No permission to send messages in log channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}.")
                 except Exception as e:
                     print(f"Log Error: Failed to send log to channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}: {e}")
             else:
@@ -766,54 +1120,78 @@ async def handle_say_command(message: discord.Message):
             pass
 
 async def handle_message_command(message: discord.Message):
-    """Handles the list.bot message command for a global broadcast."""
-    match = re.match(rf"{re.escape(MESSAGE_COMMAND_PREFIX)}\s*\"([^\"]*)\"$", message.content.strip(), re.IGNORECASE)
+    """Handles the list.bot message command for sending a message to a specific channel using IDs."""
+    
+    # Regex to capture three quoted strings: "SERVER ID" "CHANNEL ID" "MESSAGE"
+    match = re.match(
+        rf"{re.escape(MESSAGE_COMMAND_PREFIX)}\s*\"(\d+)\"\s*\"(\d+)\"\s*\"([^\"]*)\"$", 
+        message.content.strip(), 
+        re.IGNORECASE
+    )
+    
     if not match:
-        await message.channel.send(f"Format: `{MESSAGE_COMMAND_PREFIX} \"Your message here\"`")
+        await message.channel.send(f"Format: `{MESSAGE_COMMAND_PREFIX} \"SERVER ID\" \"CHANNEL ID\" \"Your message here\"`")
         return
 
-    message_to_say = match.group(1).strip()
-    if not message_to_say:
-        await message.channel.send("Please provide a message to broadcast.")
+    server_id_str, channel_id_str, message_to_say = match.groups()
+
+    if not message_to_say.strip():
+        await message.channel.send("Please provide a message to send.")
         return
-
-    print(f"Admin {message.author.name} (ID: {message.author.id}) initiated broadcast: '{message_to_say}'")
-
-    sent_count = 0
-    # Iterate over all guilds (servers) the bot is currently in
-    for guild in client.guilds:
-        target_channel = None
         
-        # Priority 1: Use the system channel (often a general or welcome channel)
-        if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
-            target_channel = guild.system_channel
-        
-        # Priority 2: Find the first text channel the bot can send messages in
-        if not target_channel:
-            for channel in guild.text_channels:
-                if channel.permissions_for(guild.me).send_messages:
-                    target_channel = channel
-                    break
-
-        if target_channel:
-            try:
-                # Send the message to the found channel
-                await target_channel.send(f"**Admin Broadcast:** {message_to_say}")
-                sent_count += 1
-            except Exception as e:
-                # Log an error if sending fails for that specific channel/server
-                print(f"Broadcast Error: Failed to send to {guild.name} ({guild.id}) in channel {target_channel.name}: {e}")
-        else:
-            print(f"Broadcast Skip: No suitable channel found in {guild.name} ({guild.id}).")
-        
-        # Pause slightly to prevent Discord rate-limiting across servers
-        await asyncio.sleep(0.5)
-
-    await message.channel.send(f"Broadcast complete! Message sent to **{sent_count}** servers.")
     try:
-        await message.add_reaction("✅")
-    except:
-        pass
+        server_id = int(server_id_str)
+        channel_id = int(channel_id_str)
+    except ValueError:
+        await message.channel.send("Server ID and Channel ID must be valid numerical IDs.")
+        return
+
+    print(f"Admin {message.author.name} (ID: {message.author.id}) requested message send to Server ID {server_id}, Channel ID {channel_id}.")
+
+    # 1. Find the Guild (Server)
+    guild = client.get_guild(server_id)
+    if not guild:
+        await message.channel.send(f"Server not found or bot is not in server with ID: `{server_id}`")
+        try:
+            await message.add_reaction("❌")
+        except:
+            pass
+        return
+
+    # 2. Find the Channel
+    channel = guild.get_channel(channel_id)
+    if not channel or not isinstance(channel, discord.TextChannel):
+        await message.channel.send(f"Channel not found, or it's not a text channel in server `{guild.name}` with ID: `{channel_id}`")
+        try:
+            await message.add_reaction("❌")
+        except:
+            pass
+        return
+
+    # 3. Check Permissions
+    if not channel.permissions_for(guild.me).send_messages:
+        await message.channel.send(f"I do not have permissions to send messages in channel `{channel.name}` on server `{guild.name}`.")
+        try:
+            await message.add_reaction("❌")
+        except:
+            pass
+        return
+
+    # 4. Send Message
+    try:
+        await channel.send(message_to_say)
+        await message.channel.send(f"Message successfully sent to <#{channel.id}> on server **{guild.name}**.")
+        try:
+            await message.add_reaction("✅")
+        except:
+            pass
+    except Exception as e:
+        print(f"Message Command Error: Failed to send message to {channel.id} on {guild.name}: {e}")
+        await message.channel.send(f"Failed to send message: An unexpected error occurred. Details: `{e}`")
+        try:
+            await message.add_reaction("❌")
+        except:
+            pass
 
 
 async def handle_close_lists_command(m: discord.Message):
@@ -971,11 +1349,11 @@ async def on_message(m: discord.Message):
         if content_lower_stripped == RAW_LIST_COMMAND.lower():
             await handle_raw_list_command(m)
             return
-        # NEW COMMAND HANDLER: list.bot message "Message" (Global Broadcast)
+        # TARGETED MESSAGE COMMAND HANDLER
         if content_lower_stripped.startswith(MESSAGE_COMMAND_PREFIX.lower()):
             await handle_message_command(m)
             return
-        # END NEW COMMAND HANDLER
+        # END TARGETED MESSAGE COMMAND HANDLER
 
     if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
