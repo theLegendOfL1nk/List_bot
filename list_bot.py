@@ -27,7 +27,7 @@ ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
 RAW_LIST_COMMAND = "list.bot raw"
-SEND_MESSAGE_COMMAND_PREFIX = "list.bot message" # <- NEW COMMAND
+MESSAGE_COMMAND_PREFIX = "list.bot message" # <- GLOBAL BROADCAST COMMAND
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -49,7 +49,6 @@ SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
 INITIAL_DATA_LIST = []
-
 
 # --- END CONFIGURATION (except for initial data) ---
 
@@ -279,7 +278,7 @@ class PersistentListPromptView(View):
                     )
                     await log_channel.send(log_message)
                 except discord.Forbidden:
-                    print(f"Log Error: No permission to send messages in log channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}.")
+                    print(f"Log Error: No permission to send messages in log channel {EPHEHERMAL_REQUEST_LOG_CHANNEL_ID}.")
                 except Exception as e:
                     print(f"Log Error: Failed to send log to channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}: {e}")
             else:
@@ -719,6 +718,10 @@ async def handle_announce_command(message: discord.Message):
 
 
 async def handle_say_command(message: discord.Message):
+    """
+    Handles the 'list.bot say' command by sending a quoted message to the configured notification channels.
+    NOTE: The target channels are defined in UPDATE_NOTIFICATION_CONFIG.
+    """
     match = re.match(rf"{re.escape(SAY_COMMAND_PREFIX)}\s*\"([^\"]*)\"$", message.content.strip(), re.IGNORECASE)
     if not match:
         await message.channel.send(f"Format: `{SAY_COMMAND_PREFIX} \"Your message here\"`")
@@ -739,7 +742,7 @@ async def handle_say_command(message: discord.Message):
             continue
         chan = client.get_channel(cid)
         if not chan:
-            print(f"Say Command Err: Channel {cid} not found for saying message.")
+            print(f"Say Command Err: Channel {cid} not found for saying message. Please update or disable the ID in UPDATE_NOTIFICATION_CONFIG.")
             continue
 
         try:
@@ -756,83 +759,61 @@ async def handle_say_command(message: discord.Message):
         except:
             pass
     else:
-        await message.channel.send("Could not send your message to any configured channels.")
+        await message.channel.send("Could not send your message to any configured channels. Check the IDs in `UPDATE_NOTIFICATION_CONFIG` and bot permissions.")
         try:
             await message.add_reaction("❌")
         except:
             pass
 
-
-async def handle_send_message_command(message: discord.Message):
-    """
-    Handles the 'list.bot message "Server Name" "Channel Name" "Your message"' command.
-    It finds the guild by name, then the channel by name, and sends the message.
-    """
-    # Regex to capture three quoted arguments: "arg1" "arg2" "arg3"
-    match = re.match(
-        rf'{re.escape(SEND_MESSAGE_COMMAND_PREFIX)}\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"$',
-        message.content.strip(),
-        re.IGNORECASE
-    )
-
+async def handle_message_command(message: discord.Message):
+    """Handles the list.bot message command for a global broadcast."""
+    match = re.match(rf"{re.escape(MESSAGE_COMMAND_PREFIX)}\s*\"([^\"]*)\"$", message.content.strip(), re.IGNORECASE)
     if not match:
-        await message.channel.send(
-            f"Format Error. Correct format: `{SEND_MESSAGE_COMMAND_PREFIX} \"Server Name\" \"Channel Name\" \"Your message here\"`"
-        )
+        await message.channel.send(f"Format: `{MESSAGE_COMMAND_PREFIX} \"Your message here\"`")
         return
 
-    server_name, channel_name, message_to_send = match.groups()
-
-    if not server_name or not channel_name or not message_to_send:
-        await message.channel.send("All three parts (Server Name, Channel Name, Message) must be provided and cannot be empty.")
+    message_to_say = match.group(1).strip()
+    if not message_to_say:
+        await message.channel.send("Please provide a message to broadcast.")
         return
 
-    # 1. Find the Guild (Server)
-    target_guild = discord.utils.get(client.guilds, name=server_name)
-    if not target_guild:
-        await message.channel.send(f"❌ Server not found: **{server_name}**.")
-        return
+    print(f"Admin {message.author.name} (ID: {message.author.id}) initiated broadcast: '{message_to_say}'")
 
-    # 2. Find the Channel
-    # Search for a TextChannel by name (case-insensitive) in the target guild
-    target_channel = discord.utils.get(
-        target_guild.text_channels,
-        name=channel_name.lower()
-    )
+    sent_count = 0
+    # Iterate over all guilds (servers) the bot is currently in
+    for guild in client.guilds:
+        target_channel = None
+        
+        # Priority 1: Use the system channel (often a general or welcome channel)
+        if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
+            target_channel = guild.system_channel
+        
+        # Priority 2: Find the first text channel the bot can send messages in
+        if not target_channel:
+            for channel in guild.text_channels:
+                if channel.permissions_for(guild.me).send_messages:
+                    target_channel = channel
+                    break
 
-    # Also check if the channel name is actually an ID for robust use
-    if not target_channel:
-        try:
-            channel_id = int(channel_name)
-            target_channel = target_guild.get_channel(channel_id)
-        except ValueError:
-            pass # Not an ID, continue to 'not found' message
+        if target_channel:
+            try:
+                # Send the message to the found channel
+                await target_channel.send(f"**Admin Broadcast:** {message_to_say}")
+                sent_count += 1
+            except Exception as e:
+                # Log an error if sending fails for that specific channel/server
+                print(f"Broadcast Error: Failed to send to {guild.name} ({guild.id}) in channel {target_channel.name}: {e}")
+        else:
+            print(f"Broadcast Skip: No suitable channel found in {guild.name} ({guild.id}).")
+        
+        # Pause slightly to prevent Discord rate-limiting across servers
+        await asyncio.sleep(0.5)
 
-    if not target_channel:
-        await message.channel.send(
-            f"❌ Channel not found: **{channel_name}** in Server **{server_name}**. "
-            "Note: The channel name must be exactly correct (case-insensitive search)."
-        )
-        return
-
-    # 3. Send the Message
+    await message.channel.send(f"Broadcast complete! Message sent to **{sent_count}** servers.")
     try:
-        await target_channel.send(message_to_say)
-
-        await message.channel.send(
-            f"✅ Sent message to channel **#{target_channel.name}** in server **{target_guild.name}**."
-        )
-        try:
-            await message.add_reaction("✅")
-        except:
-            pass
-
-    except discord.Forbidden:
-        await message.channel.send(
-            f"❌ Bot does not have permission to send messages in **#{target_channel.name}**."
-        )
-    except Exception as e:
-        await message.channel.send(f"❌ An error occurred while sending the message: `{e}`")
+        await message.add_reaction("✅")
+    except:
+        pass
 
 
 async def handle_close_lists_command(m: discord.Message):
@@ -945,7 +926,7 @@ async def on_ready():
 
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Message:"{SEND_MESSAGE_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Message:"{MESSAGE_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
 
     print("Initializing channel states...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
@@ -990,9 +971,9 @@ async def on_message(m: discord.Message):
         if content_lower_stripped == RAW_LIST_COMMAND.lower():
             await handle_raw_list_command(m)
             return
-        # NEW COMMAND HANDLER: list.bot message "Server" "Channel" "Message"
-        if content_lower_stripped.startswith(SEND_MESSAGE_COMMAND_PREFIX.lower()):
-            await handle_send_message_command(m)
+        # NEW COMMAND HANDLER: list.bot message "Message" (Global Broadcast)
+        if content_lower_stripped.startswith(MESSAGE_COMMAND_PREFIX.lower()):
+            await handle_message_command(m)
             return
         # END NEW COMMAND HANDLER
 
