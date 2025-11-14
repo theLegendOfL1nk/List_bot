@@ -29,7 +29,7 @@ AUTO_UPDATE_MESSAGE_REGEX = re.compile(
 )
 
 INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
-    1379541947189821460, 1355614867490345192, 1378070555638628383, 1378850404565127229, 1385453089338818651
+    1379541947189821460, 1378070555638628383, 1378850404565127229, 1385453089338818651
 ]
 
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
@@ -115,11 +115,6 @@ SORT_CONFIGS = {
 
 UPDATE_NOTIFICATION_CONFIG = [
     # ... (Your UPDATE_NOTIFICATION_CONFIG list remains the same) ...
-    {
-        "channel_id": 1349793261908262942,
-        "message_format": "{item_val} - {name_val} - {cost_val}\n{role_ping}",
-        "role_id_to_ping": 1357477336282566766
-    },
     {
         "channel_id": 1378070194148217012,
         "message_format": "{name_val} - {item_val} - {cost_val}\n{role_ping}",
