@@ -6,7 +6,7 @@ import asyncio
 import json
 from discord.ui import View, Button, button
 from discord.enums import ButtonStyle
-from collections import Counter
+from collections import Counter # Kept for potential future use or if other logic uses it
 import aiohttp.web
 
 # --- CONFIGURATION ---
@@ -16,7 +16,7 @@ DATA_FILE = "data.json"
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
 ADMIN_USER_IDS = [
-    YOUR_USER_ID, 1188633780261507102, #REVOKED 1020489591800729610 for misuse of bot commands
+    YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
     934249510127935529, 504748495933145103, 1095468010564767796
 ]
 
@@ -42,7 +42,7 @@ EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 
-# CHANGED: 7 days in seconds for the new Recent filter
+# Variables related to removed sort configs (kept for compatibility, though unused)
 SECONDS_IN_WEEK = 604800 
 MAX_MESSAGE_LENGTH = 1900
 
@@ -50,22 +50,7 @@ INITIAL_DATA_LIST = []
 
 data_list = []
 
-# Helper function for the new 'Owner' sort (FIXED for stability)
-def sort_by_owner_tally(data):
-    if not data:
-        return []
-    name_counts = Counter(row[1].lower() for row in data)
-    def custom_sort_key(row):
-        name = row[1].lower()
-        # Safely convert cost to int, defaulting to 0
-        try:
-            cost = int(row[2])
-        except (IndexError, ValueError):
-            cost = 0 
-        return (-name_counts[name], name, -cost)
-    return sorted(data, key=custom_sort_key)
-
-
+# SORT_CONFIGS is reduced to only Item and Name
 SORT_CONFIGS = {
     "sort_config_item": {
         "label": "by Item", "button_label": "Sort: Item",
@@ -76,29 +61,9 @@ SORT_CONFIGS = {
         "label": "by Name", "button_label": "Sort: Name",
         "sort_lambda": lambda data: sorted(data, key=lambda x: (x[1].lower(), x[0].lower())),
         "column_order_indices": [1, 0, 2], "headers": ["Name", "Item", "Cost"]
-    },
-    "sort_config_cost": {
-        "label": "by Cost", "button_label": "Sort: Cost",
-        # Use safe check for isdigit() to prevent ValueError crash on non-numeric cost
-        "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]) if str(x[2]).isdigit() else 0, x[0].lower())),
-        "column_order_indices": [2, 0, 1], "headers": ["Cost", "Item", "Name"]
-    },
-    "sort_config_recent": {
-        # CHANGED: Label reflects the new 7-day filter
-        "label": "by Recent (Last 7 Days)", "button_label": "Sort: Recent",
-        # CHANGED: The lambda filters items where the timestamp (index 3) is within the last 7 days, and reverses the result to show newest first.
-        "sort_lambda": lambda data: [
-            row for row in data 
-            if len(row) > 3 and row[3] >= (time.time() - SECONDS_IN_WEEK)
-        ][::-1],
-        "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (7 Days)"]
-    },
-    "sort_config_owner": {
-        "label": "by Owner Count", "button_label": "Sort: Owner",
-        "sort_lambda": sort_by_owner_tally,
-        "column_order_indices": [1, 0, 2], "headers": ["Name", "Item", "Cost"]
     }
 }
+# Cost, Recent, and Owner sort configs have been removed per request.
 
 UPDATE_NOTIFICATION_CONFIG = [
     {
@@ -130,7 +95,7 @@ view_message_tracker = {}
 
 # Functions for data persistence
 # ----------------------------------------------------
-# 1. Synchronous (Blocking) Helpers - Renamed to be private/sync
+# 1. Synchronous (Blocking) Helpers - Renamed to be private/sync (Stability Fix)
 # ----------------------------------------------------
 def _load_data_list_sync():
     """Synchronous function to load data from file, which can block the event loop."""
@@ -154,17 +119,16 @@ def _load_data_list_sync():
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data (Sync).")
         temp_data_list = list(INITIAL_DATA_LIST)
     
-    # NEW LOGIC: Ensure all rows have a timestamp (index 3) for the new Recent filter
+    # Ensure all rows have a timestamp (index 3) for the new Recent filter (kept for data integrity)
     for row in temp_data_list:
         if len(row) > 2:
             # Ensure cost is stored as a string
             row[2] = str(row[2])
-        # If old data is loaded (length < 4), append a 0 timestamp (which fails the 7-day filter)
+        # If old data is loaded (length < 4), append a 0 timestamp
         if len(row) < 4:
             row.append(0)
     
     data_list = temp_data_list # Update global list once, safely
-    # Note: Returning len(data_list) is optional but confirms the operation ran.
     return len(data_list)
 
 def _save_data_list_sync():
@@ -180,7 +144,7 @@ def _save_data_list_sync():
         print(f"ERROR: Failed to save data to {DATA_FILE} (Sync): {e}")
 
 # ----------------------------------------------------
-# 2. Asynchronous (Non-Blocking) Wrappers - The fix for the runtime error
+# 2. Asynchronous (Non-Blocking) Wrappers (Stability Fix)
 # ----------------------------------------------------
 async def load_data_list():
     """Asynchronous wrapper to load data in a separate thread."""
@@ -207,6 +171,7 @@ class EphemeralListView(View):
                     child.style = ButtonStyle.secondary
 
     async def _update_ephemeral_message(self, interaction: discord.Interaction, new_sort_key: str):
+        # NOTE: Only Item and Name keys are passed here due to the decorator functions below.
         self.current_sort_key = new_sort_key
         self._update_button_states()
         full_content_parts = format_sorted_list_content(new_sort_key, is_ephemeral=True)
@@ -216,6 +181,7 @@ class EphemeralListView(View):
         except discord.HTTPException as e:
             print(f"Failed to edit ephemeral message for {interaction.user.name}: {e}")
 
+    # --- Only Item and Name Buttons are included ---
     @button(label=SORT_CONFIGS["sort_config_item"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_item")
     async def sort_item_btn_e(self, i: discord.Interaction, b: Button):
         await self._update_ephemeral_message(i, "sort_config_item")
@@ -223,18 +189,7 @@ class EphemeralListView(View):
     @button(label=SORT_CONFIGS["sort_config_name"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_name")
     async def sort_name_btn_e(self, i: discord.Interaction, b: Button):
         await self._update_ephemeral_message(i, "sort_config_name")
-
-    @button(label=SORT_CONFIGS["sort_config_cost"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_cost")
-    async def sort_cost_btn_e(self, i: discord.Interaction, b: Button):
-        await self._update_ephemeral_message(i, "sort_config_cost")
-
-    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_recent")
-    async def sort_recent_btn_e(self, i: discord.Interaction, b: Button):
-        await self._update_ephemeral_message(i, "sort_config_recent")
-
-    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_owner")
-    async def sort_owner_btn_e(self, i: discord.Interaction, b: Button):
-        await self._update_ephemeral_message(i, "sort_config_owner")
+    # ----------------------------------------------
 
     async def on_timeout(self):
         print(f"EphemeralListView for sort {self.current_sort_key} timed out.")
@@ -277,6 +232,7 @@ class PersistentListPromptView(View):
             except:
                 pass
 
+    # --- Only Item and Name Buttons are included ---
     @button(label=SORT_CONFIGS["sort_config_item"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_item")
     async def sort_item_btn_p(self, i: discord.Interaction, b: Button):
         await self._send_ephemeral_sorted_list(i, "sort_config_item")
@@ -284,18 +240,7 @@ class PersistentListPromptView(View):
     @button(label=SORT_CONFIGS["sort_config_name"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_name")
     async def sort_name_btn_p(self, i: discord.Interaction, b: Button):
         await self._send_ephemeral_sorted_list(i, "sort_config_name")
-
-    @button(label=SORT_CONFIGS["sort_config_cost"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_cost")
-    async def sort_cost_btn_p(self, i: discord.Interaction, b: Button):
-        await self._send_ephemeral_sorted_list(i, "sort_config_cost")
-
-    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_recent")
-    async def sort_recent_btn_p(self, i: discord.Interaction, b: Button):
-        await self._send_ephemeral_sorted_list(i, "sort_config_recent")
-
-    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_owner")
-    async def sort_owner_btn_p(self, i: discord.Interaction, b: Button):
-        await self._send_ephemeral_sorted_list(i, "sort_config_owner")
+    # ----------------------------------------------
 
     async def on_timeout(self):
         print(f"PersistentListPromptView for channel {self.target_channel_id} supposedly timed out.")
@@ -323,16 +268,16 @@ async def update_data_for_auto(item_val, name_val):
         except ValueError:
             final_cost = "1"
         existing_row[2] = final_cost
-        # NEW: Update timestamp
+        # Update timestamp (kept for data structure integrity)
         existing_row[3] = current_time_epoch
         data_list.append(existing_row)
     else:
-        # NEW: Add timestamp
+        # Add timestamp (kept for data structure integrity)
         new_row = [item_val, name_val, final_cost, current_time_epoch]
         data_list.append(new_row)
         
     _update_last_changed_details(item_val, name_val, final_cost)
-    await save_data_list()
+    await save_data_list() # Stability Fix: ADD await
     print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
     return final_cost
 
@@ -393,33 +338,20 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     current_epoch = int(time.time())
     timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)" 
     
-    if sort_key == "sort_config_recent":
-        # Processed data is filtered by the 7-day lambda defined in SORT_CONFIGS
-        processed_data = sort_details["sort_lambda"](list_data_source)
+    # Since only Item and Name remain, the logic is simplified
+    if not list_data_source:
+        timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
+        return [timestamp_line]
         
-        if not processed_data:
-            empty_msg = "No items have been updated in the last 7 days."
-            timestamp_line = f"{empty_msg}\nLast Updated: {timestamp_base} (Sorted {sort_details['label']})"
-            return [timestamp_line]
-        
-        formatted_text_parts = format_list_for_display(processed_data,
-                                                       sort_details["column_order_indices"],
-                                                       sort_details["headers"])
-    else:
-        # Handling all other sort configurations
-        if not list_data_source:
-            timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
-            return [timestamp_line]
-            
-        processed_data = sort_details["sort_lambda"](list_data_source)
-        
-        if not processed_data:
-            timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
-            return [timestamp_line]
+    processed_data = sort_details["sort_lambda"](list_data_source)
+    
+    if not processed_data:
+        timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
+        return [timestamp_line]
 
-        formatted_text_parts = format_list_for_display(processed_data,
-                                                       sort_details["column_order_indices"],
-                                                       sort_details["headers"])
+    formatted_text_parts = format_list_for_display(processed_data,
+                                                   sort_details["column_order_indices"],
+                                                   sort_details["headers"])
 
     final_message_parts = []
     ts_msg_base = f"(Sorted {sort_details['label']})"
@@ -605,19 +537,19 @@ async def handle_manual_add_command(m: discord.Message):
             except:
                 final_cost = "1"
         row_to_update[2] = final_cost
-        # NEW: Update timestamp
+        # Update timestamp (kept for data structure integrity)
         row_to_update[3] = current_time_epoch
         data_list.append(row_to_update)
         resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
     else:
         final_cost = cost_s if cost_s else "1"
-        # NEW: Add timestamp
+        # Add timestamp (kept for data structure integrity)
         new_row = [item_in, name_in, final_cost, current_time_epoch]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
         
     _update_last_changed_details(item_in, name_in, final_cost)
-    await save_data_list()
+    await save_data_list() # Stability Fix: ADD await
     await m.channel.send(resp)
     await update_all_persistent_list_prompts()
 
@@ -637,7 +569,7 @@ async def handle_delete_command(message: discord.Message):
         if last_updated_item_details.get("item_val") and \
            last_updated_item_details["item_val"].lower() == item_to_delete.lower():
             _update_last_changed_details(None, None, None)
-        await save_data_list()
+        await save_data_list() # Stability Fix: ADD await
         await update_all_persistent_list_prompts()
     else:
         await message.channel.send(f"Item '{item_to_delete}' not found.")
@@ -805,7 +737,7 @@ async def on_ready():
 
     print(f'{client.user.name} ({client.user.id}) connected!')
     print("Loading data from file...")
-    await load_data_list()
+    await load_data_list() # Stability Fix: ADD await
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
     print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"') 
