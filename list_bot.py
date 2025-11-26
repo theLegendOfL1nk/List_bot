@@ -6,7 +6,7 @@ import asyncio
 import json
 from discord.ui import View, Button, button
 from discord.enums import ButtonStyle
-from collections import Counter # Kept for potential future use or if other logic uses it
+from collections import Counter
 import aiohttp.web
 
 # --- CONFIGURATION ---
@@ -26,7 +26,7 @@ CLOSE_LISTS_COMMAND = "list.bot close"
 ANNOUNCE_COMMAND = "list.bot announce"
 DELETE_COMMAND_PREFIX = "list.bot delete"
 SAY_COMMAND_PREFIX = "list.bot say"
-RAW_LIST_COMMAND = "list.bot raw" 
+RAW_LIST_COMMAND = "list.bot raw"
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -42,8 +42,7 @@ EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 
-# Variables related to removed sort configs (kept for compatibility, though unused)
-SECONDS_IN_WEEK = 604800 
+SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
 INITIAL_DATA_LIST = []
@@ -101,7 +100,7 @@ def _load_data_list_sync():
     """Synchronous function to load data from file, which can block the event loop."""
     global data_list
     temp_data_list = []
-    
+
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
@@ -118,7 +117,7 @@ def _load_data_list_sync():
     else:
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data (Sync).")
         temp_data_list = list(INITIAL_DATA_LIST)
-    
+
     # Ensure all rows have a timestamp (index 3) for the new Recent filter (kept for data integrity)
     for row in temp_data_list:
         if len(row) > 2:
@@ -127,7 +126,7 @@ def _load_data_list_sync():
         # If old data is loaded (length < 4), append a 0 timestamp
         if len(row) < 4:
             row.append(0)
-    
+
     data_list = temp_data_list # Update global list once, safely
     return len(data_list)
 
@@ -257,9 +256,9 @@ async def update_data_for_auto(item_val, name_val):
         if row[0].lower() == item_val.lower():
             found_idx = i
             break
-    
+
     current_time_epoch = time.time()
-    
+
     if found_idx != -1:
         existing_row = data_list.pop(found_idx)
         existing_row[1] = name_val
@@ -275,7 +274,7 @@ async def update_data_for_auto(item_val, name_val):
         # Add timestamp (kept for data structure integrity)
         new_row = [item_val, name_val, final_cost, current_time_epoch]
         data_list.append(new_row)
-        
+
     _update_last_changed_details(item_val, name_val, final_cost)
     await save_data_list() # Stability Fix: ADD await
     print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
@@ -303,7 +302,7 @@ def format_list_for_display(data, col_indices, headers):
     if total_line_length > MAX_MESSAGE_LENGTH - 50:
         padding = [1] * len(widths)
         total_line_length = sum(widths) + sum(padding) - padding[-1]
-    
+
     # Create the header line
     header_line = " ".join(f"{headers[i]:<{widths[i]}}" for i in range(len(headers)))
 
@@ -314,7 +313,7 @@ def format_list_for_display(data, col_indices, headers):
     for row in data:
         disp_row = [str(row[i]) for i in col_indices]
         line = " ".join(f"{disp_row[i]:<{widths[i]}}" for i in range(len(headers)))
-        
+
         # Check if adding the new line will exceed the max length
         if current_length + len(line) + 1 + 100 > MAX_MESSAGE_LENGTH:
             message_parts.append("\n".join(current_part_lines))
@@ -323,7 +322,7 @@ def format_list_for_display(data, col_indices, headers):
         else:
             current_part_lines.append(line)
             current_length += len(line) + 1
-    
+
     if current_part_lines:
         message_parts.append("\n".join(current_part_lines))
 
@@ -333,18 +332,18 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     sort_details = SORT_CONFIGS[sort_key]
     list_data_source = data_list
     processed_data = []
-    
+
     # Define a standardized timestamp line for all list updates
     current_epoch = int(time.time())
-    timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)" 
-    
+    timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)"
+
     # Since only Item and Name remain, the logic is simplified
     if not list_data_source:
         timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
         return [timestamp_line]
-        
+
     processed_data = sort_details["sort_lambda"](list_data_source)
-    
+
     if not processed_data:
         timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
         return [timestamp_line]
@@ -364,7 +363,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
 
         # Inject the clear, standardized timestamp
         timestamp_line = f"Last Updated: {timestamp_base} | {part_header}{ts_msg_base}"
-        
+
         # Recalculate content length, leaving space for the timestamp and code block
         content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
@@ -525,7 +524,7 @@ async def handle_manual_add_command(m: discord.Message):
             break
 
     current_time_epoch = time.time()
-    
+
     if found_idx != -1:
         row_to_update = data_list.pop(found_idx)
         row_to_update[1] = name_in
@@ -547,7 +546,7 @@ async def handle_manual_add_command(m: discord.Message):
         new_row = [item_in, name_in, final_cost, current_time_epoch]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
-        
+
     _update_last_changed_details(item_in, name_in, final_cost)
     await save_data_list() # Stability Fix: ADD await
     await m.channel.send(resp)
@@ -649,17 +648,17 @@ async def handle_close_lists_command(m: discord.Message):
 async def handle_raw_list_command(m: discord.Message):
     """Handles the 'list.bot raw' command by dumping data_list as JSON and splitting into multiple messages if needed."""
     global data_list
-    
+
     if not data_list:
         await m.channel.send("`data_list` is empty.")
         return
 
     # Dump the data_list to a JSON string with an indent for readability
     raw_json = json.dumps(data_list, indent=2)
-    
+
     # Target maximum content size inside the code block is 1850 (1900 - 50 for overhead).
-    MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150 
-    
+    MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150
+
     # Split the raw_json string into chunks
     chunks = []
     i = 0
@@ -672,19 +671,19 @@ async def handle_raw_list_command(m: discord.Message):
 
     for i, chunk in enumerate(chunks):
         part_number = i + 1
-        
+
         # Add a descriptive header for multi-part messages
         if total_parts > 1:
             header_text = f"Raw List Data (Part {part_number}/{total_parts})"
         else:
             header_text = "Raw List Data"
 
-        # Construct the final message with code block. 
+        # Construct the final message with code block.
         msg_content = f"{header_text}\n```json\n{chunk}\n```"
-        
+
         await m.channel.send(msg_content)
         # Add a slight delay between messages to avoid rate-limiting
-        await asyncio.sleep(0.5) 
+        await asyncio.sleep(0.5)
 
     try:
         await m.add_reaction("✅")
@@ -740,7 +739,7 @@ async def on_ready():
     await load_data_list() # Stability Fix: ADD await
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"') 
+    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
 
     print("Initializing channel states for persistent views...")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
