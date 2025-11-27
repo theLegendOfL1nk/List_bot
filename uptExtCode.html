@@ -3,84 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot Status: Online</title>
+    <title>Bot Uptime Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #2c2f33; /* Discord dark theme color */
-            color: #ffffff;
+        /* Notice the doubled curly braces {{ and }} around the CSS blocks to escape Python's .format() */
+        body {{
+            background-color: #1f2937;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-        }
-        .status-card {
-            background-color: #36393f; /* Discord card color */
-            padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            width: 90%;
-            max-width: 400px;
-        }
-        .status-header {
-            font-size: 24px;
-            font-weight: 600;
-            color: #43b581; /* Discord success color */
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .status-header span {
-            margin-right: 10px;
-            font-size: 30px;
-        }
-        .uptime-detail {
-            font-size: 18px;
-            margin: 10px 0;
-            padding: 10px;
-            background-color: #2f3136;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-        }
-        .time-label {
-            color: #b9bbbe;
-        }
-        .time-value {
-            font-weight: 700;
-            color: #ffffff;
-        }
-        .footer {
-            margin-top: 30px;
-            font-size: 12px;
-            color: #72767d;
-        }
+        }}
+        .card {{
+            background-color: #374151;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        }}
     </style>
 </head>
 <body>
-    <div class="status-card">
-        <div class="status-header">
-            <span style="color: #43b581;">&#x2713;</span>
-            Bot is Online
+    <div class="card p-8 rounded-xl max-w-sm w-full text-center">
+        <h1 class="text-3xl font-bold mb-4 text-green-400">List Bot Status</h1>
+        
+        <p class="text-xl mb-2 text-gray-300">Current Uptime</p>
+
+        <div class="flex justify-around items-end bg-gray-700 p-4 rounded-lg">
+            
+            <div class="mx-2">
+                <span class="text-6xl font-extrabold text-green-400">{days}</span>
+                <p class="text-sm uppercase text-gray-400 mt-1">Days</p>
+            </div>
+            <div class="text-5xl text-gray-500">:</div>
+
+            <div class="mx-2">
+                <span class="text-6xl font-extrabold text-green-400">{hours}</span>
+                <p class="text-sm uppercase text-gray-400 mt-1">Hours</p>
+            </div>
+            <div class="text-5xl text-gray-500">:</div>
+
+            <div class="mx-2">
+                <span class="text-6xl font-extrabold text-green-400">{minutes}</span>
+                <p class="text-sm uppercase text-gray-400 mt-1">Minutes</p>
+            </div>
         </div>
-        <div class="uptime-detail">
-            <span class="time-label">Days:</span>
-            <span class="time-value">{days}</span>
-        </div>
-        <div class="uptime-detail">
-            <span class="time-label">Hours:</span>
-            <span class="time-value">{hours}</span>
-        </div>
-        <div class="uptime-detail">
-            <span class="time-label">Minutes:</span>
-            <span class="time-value">{minutes}</span>
-        </div>
-        <div class="footer">
-            Powered by Render. Last checked: {timestamp_check}
-        </div>
+
+        <p class="text-xs mt-6 text-gray-500">
+            Last check rendered at: <span class="font-mono text-gray-400">{timestamp_check} UTC</span>
+        </p>
     </div>
 </body>
 </html>

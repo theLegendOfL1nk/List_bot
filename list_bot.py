@@ -12,11 +12,13 @@ import aiohttp.web
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
-UPTIME_TEMPLATE_FILE = "uptExtCode.html" # New: HTML template file name
+UPTIME_TEMPLATE_FILE = "uptime_template.html" # New: HTML template file name
 BOT_START_TIME = time.time() # New: Tracks the time the bot process started
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
+
+# User ID 1020489591800729610 has been removed as requested.
 ADMIN_USER_IDS = [
     YOUR_USER_ID, 1188633780261507102,
     934249510127935529, 504748495933145103, 1095468010564767796
@@ -47,200 +49,8 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = [
-  [
-    "Bandage",
-    "Mnesia",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Rice",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Corn",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Soil",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Triangle",
-    "CuteMiffy",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Sawblade",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Rock",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Faster",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Fang",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Shell",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Claw",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Plank",
-    "nts2z",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Bulb",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Starfish",
-    "maru7024",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Card",
-    "hqyx",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Air",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Chip",
-    "Animi",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Beetle egg",
-    "abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Wing",
-    "blow",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Poo",
-    "blow",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Coin",
-    "Char",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Yucca",
-    "6B6I",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Clover",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Privet Berry",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Antennae",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Ant Egg",
-    "tianleshan",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Cactus",
-    "tianleshan",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Glass",
-    "Minenwerfer",
-    "1",
-    1764203269.2663631
-  ],
-  [
-    "Missile",
-    "Missile",
-    "1",
-    1764203281.944082
-  ],
-  [
-    "Pincer",
-    "Luai2",
-    "1",
-    1764203298.9778957
-  ],
-  [
-    "Iris",
-    "craft_super",
-    "1",
-    1764203321.9409359
-  ],
-  [
-    "Sand",
-    "Luai2",
-    "1",
-    1764203328.8118267
-  ]
-]
+# Changed to an empty list as requested. Data will only load from data.json or manual commands.
+INITIAL_DATA_LIST = [] 
 
 data_list = []
 UPTIME_TEMPLATE_CONTENT = "" # New: Global variable to hold the loaded HTML template
@@ -427,7 +237,7 @@ class PersistentListPromptView(View):
                     )
                     await log_channel.send(log_message)
                 except discord.Forbidden:
-                    print(f"Log Error: No permission to send messages in log channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}.")
+                    print(f"Log Error: No permission to send messages in log channel {EPHEHERAL_REQUEST_LOG_CHANNEL_ID}.")
                 except Exception as e:
                     print(f"Log Error: Failed to send log to channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}: {e}")
             else:
@@ -1045,6 +855,7 @@ async def handle_uptime(request):
 
     if not UPTIME_TEMPLATE_CONTENT:
         # Fallback if the template failed to load during startup
+        print("Template content empty, attempting reload.")
         await load_uptime_template()
         if not UPTIME_TEMPLATE_CONTENT:
             return aiohttp.web.Response(text="Error: HTML template is missing.", content_type='text/plain', status=500)
@@ -1057,6 +868,9 @@ async def handle_uptime(request):
     
     # 2. Format the Template
     try:
+        # The .format() call expects placeholders like {days}, {hours}, etc.
+        # If the HTML contains unescaped braces like in CSS (e.g., {color: red;}), 
+        # it will fail. Make sure the HTML uses {{ and }} for literal braces.
         html_content = UPTIME_TEMPLATE_CONTENT.format(
             days=f"{uptime_days:02d}",
             hours=f"{uptime_hours:02d}",
@@ -1064,10 +878,15 @@ async def handle_uptime(request):
             timestamp_check=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
         )
     except KeyError as e:
-        # Catch errors if placeholders are missing in the template file
-        error_msg = f"Error rendering template: Missing placeholder {e}."
+        # This catches the exact error the user saw, confirming the HTML needs fixing.
+        error_msg = (
+            f"Error rendering template: Missing placeholder {e}. "
+            f"Likely cause: Unescaped curly braces in the HTML (especially in CSS/JS). "
+            f"Fix: In your 'uptime_template.html', replace all literal {{ and }} with {{ and }}."
+        )
         print(error_msg)
         html_content = f"<h1>{error_msg}</h1>"
+        return aiohttp.web.Response(text=html_content, content_type='text/html', status=500)
 
     # 3. Return the HTML response
     return aiohttp.web.Response(text=html_content, content_type='text/html')
