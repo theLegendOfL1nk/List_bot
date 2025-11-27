@@ -12,7 +12,7 @@ import aiohttp.web
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
-UPTIME_TEMPLATE_FILE = "uptime_template.html" # New: HTML template file name
+UPTIME_TEMPLATE_FILE = "uptExtCode.html" # New: HTML template file name
 BOT_START_TIME = time.time() # New: Tracks the time the bot process started
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
