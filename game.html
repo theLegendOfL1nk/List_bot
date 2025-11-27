@@ -817,24 +817,7 @@ draw = function() {
         mouseY<250+height/2-300+Time+100-Time*2){
             
             cursor(HAND);
-            if(mousePressed){
-                
-                GaSt=3;
-                
-                p = {
-        
-        x:150,
-        y:250,
-        
-        rX:200,
-        rY:200,
-        
-        d:false,
-        de:3,
-        
-};//Player
-                
-            }
+            
             
         }
         popMatrix();
@@ -1101,6 +1084,35 @@ draw = function() {
         
     }
     
+    
+};
+
+mousePressed = function(){
+    
+    if(
+        GaSt===2&&
+        mouseX>200+width/2-300+Time&&
+        mouseX<200+width/2-300+Time+200-Time*2&&
+        mouseY>250+height/2-300+Time&&
+        mouseY<250+height/2-300+Time+100-Time*2
+        ){
+                
+                GaSt=3;
+                
+                p = {
+        
+        x:150,
+        y:250,
+        
+        rX:200,
+        rY:200,
+        
+        d:false,
+        de:3,
+        
+};//Player
+                
+            }
     
 };
 
