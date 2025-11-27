@@ -48,7 +48,7 @@ channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 
 SECONDS_IN_WEEK = 604800
-MAX_MESSAGE_LENGTH = 1900
+MAX_MESSAGE_LENGTH = 1800
 
 # Changed to an empty list as requested. Data will only load from data.json or manual commands.
 INITIAL_DATA_LIST = [] 
