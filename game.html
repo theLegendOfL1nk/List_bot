@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html> 
+  <head>
+    <title>Platformer</title> 
+  </head>
+  <body>
+	<!--This draws the canvas on the webpage -->
+    <canvas id="mycanvas"></canvas> 
+  </body>
+ 
+  
+  <script src="https://cdn.jsdelivr.net/processing.js/1.4.8/processing.min.js"></script> 
+  <script>
+  var programCode = function(processingInstance) {
+    with (processingInstance) {
+      size(innerWidth-20,innerHeight-20); 
+      frameRate(60);
+        
+        var timers = [
+    
+    [ 0, 0],//1
+    [10,10],//2
+    [],//3
+    
+];
+var ExCoVar = [0,0,0,0,0,0,0,0,0,0,0,0];
+var ExtraVa = [];
+var GaSt = 0;
+var p = 0;
+
+{
+var keyArray = [];
+var keyString = '';
+var keys = [];
+
+var Log = ['All code is owned by it\'s respective author. Copyright Link 2025 ©'];
+
+var Parser = function(string){
+
+var input = [
+    'help',
+    'init',
+    'hi',
+    '...',
+    'Who am I',
+    'exit',
+    'Confirm',
+    ];
+var output = [
+    'To initialize the system, type "init"',
+    'Are you sure you want to initialize? Type "Confirm" to start.',
+    'Hello. How may I assist you today?',
+    '...',
+    'Your name is Link.',
+    'Unable to parse string input. Try pressing ALT + F4, or CTRL + W',
+    'Confirmed...',
+    ];
+var j = true;
+for(var i = 0 ; i < input.length;i++){
+    
+    if(keyString==="Confirm"){GaSt=1;}
+    if(string.toLowerCase()===input[i].toLowerCase()){
+        
+        /*if(input[i].length > 1){
+            
+            for(var j = 0;j < input[i].length;j++){
+            
+            Log.push(output[i+1][j]);
+            
+        }
+        
+        }*/
+        
+        
+        Log.push(output[i]);
+        
+        j = false;
+        keyString='';
+        keyArray=[];
+        //println(input.length);
+       
+    } 
+    
+}
+if(j===true&&keyString!==''){Log.push(
+    
+    '"'+keyString+'"'+' is an unknown command. to see all commands, type "help"');
+    
+}
+
+
+};
+
+var Time = -255;
+}//Typing
+
+{
+   
+   
+var p = {
+        
+        x:150,
+        y:250,
+        
+        rX:200,
+        rY:200,
+        
+        d:false,
+        de:3,
+        
+};//Player
+
+var v = {
+        
+        u:-5,
+        l:0,
+        r:0,
+        
+        t:15,
+        
+        
+        
+};//Velocity
+
+var c = {
+        
+        b:395,
+        bB:false,
+        
+        c:5,
+        cB:false,
+        
+};//Collision
+
+var m = {
+        
+        l:0,
+        c:false,
+        
+        t:0,
+        
+};//Game
+
+var a = {
+        
+        x:p.x,
+        y:p.y,
+        
+        c:1,
+        t:1,
+        
+        s:10,
+        
+};//Camera
+
+var g = {
+    
+    f:255,
+    
+    x:[],
+    y:[],
+    
+    v1:[],
+    v2:[],
+    
+    s:[],
+    c:[],
+    
+};//Graphics
+
+var maps = [
+    
+    //First map
+    [
+        
+        ['pppppppppppppppppp'],
+        ['p      p        pp'],
+        ['p#     p  ppppp  p'],
+        ['pplllp   pp&     p'],
+        ['pppppppppppppppppp'],
+        
+        
+    ],
+    
+    //Second Map
+    [
+        
+        ['pppppppppppp'],
+        ['p         pp'],
+        ['p#         p'],
+        ['p   p      p'],
+        ['pplllllppp p'],
+        ['pppppppppp p'],
+        ['p       p  p'],
+        ['p       p pp'],
+        ['p ppp   p  p'],
+        ['p   pp  pp p'],
+        ['p p &pp    p'],
+        ['plpppppppppp'],
+        ['pppppppppppp'],
+        
+    ],
+    
+    //Third map
+    [
+        
+        ['pppppppppppp'],
+        ['p         pp'],
+        ['p          p'],
+        ['p#  l      p'],
+        ['pplllllppp p'],
+        ['pppppppppp p'],
+        ['p       p  p'],
+        ['p       p pp'],
+        ['p ppp   p  p'],
+        ['p   pp  pp p'],
+        ['p p &pp    p'],
+        ['pllllppllppp'],
+        ['pppppppppppp'],
+        
+    ],
+    
+    //Fourth map
+    [
+        
+        ['pppppppppppp'],
+        ['p         pp'],
+        ['p#         p'],
+        ['p   l      p'],
+        ['ppllllllpp p'],
+        ['pppppppppp p'],
+        ['p       p  p'],
+        ['p       p pp'],
+        ['p plp   p  p'],
+        ['p   pp  pp p'],
+        ['p p &pp    p'],
+        ['pllllppllplp'],
+        ['pppppppppppp'],
+        
+    ],
+    
+    //Fifth map
+    [
+        
+        
+        [' #                          &'],
+        ['pp       p       pppppppppppp'],
+        
+    ],
+    
+    //Sixth map
+    [
+        
+        ['ppppppppppp'],
+        ['p# p&     p'],
+        ['pp ppppp  p'],
+        ['p  pppp  pp'],
+        ['p pppp  ppp'],
+        ['p  pp  pppp'],
+        ['pp ppp  ppp'],
+        ['p  pppp  pp'],
+        ['p pppppp  p'],
+        ['p  pppp  pp'],
+        ['pp ppp  ppp'],
+        ['p  pp  pppp'],
+        ['p pp  ppppp'],
+        ['p    pppppp'],
+        ['ppppppppppp'],
+        
+    ],
+    
+    //Seventh map
+    [
+        
+        ['pppppppppppppppppp'],
+        ['p    &p llll     p'],
+        ['p#ppppp          p'],
+        ['p       llll    &p'],
+        ['pppppppppppppppppp'],
+        
+    ],
+    
+    //Eighth map
+    [
+        
+        ['lllll'],
+        ['l # l'],
+        ['l pll'],
+        ['l   l'],
+        ['llp l'],
+        ['l   l'],
+        ['l pll'],
+        ['l   l'],
+        ['llp l'],
+        ['l   l'],
+        ['l pll'],
+        ['l   l'],
+        ['llp l'],
+        ['l&  l'],
+        ['lppll'],
+        
+    ],
+    
+    //Ninth map
+    [
+        
+        [' #                               '],
+        ['ppp plllllllllllllllllllllllllllp'],
+        ['p   p                           p'],
+        ['p ppp                           p'],
+        ['p   p                           p'],
+        ['ppp p                           p'],
+        ['p   p                           p'],
+        ['p ppp              l            p'],
+        ['p   p              l            p'],
+        ['ppp p      l&      l            p'],
+        ['p   p       p      l            p'],
+        ['p ppp    p    p    l            l'],
+        ['p   p p  l      p  l            l'],
+        ['ppp p   pl  pp     l            l'],
+        ['p   p  pp          l            l'],
+        ['p pppp             l            l'],
+        ['p   pppppppp      pl            l'],
+        ['ppp p            ppl            l'],
+        ['p   p           pp l            l'],
+        ['p ppp          pp  l            l'],
+        ['p   p         pp   l            l'],
+        ['ppp p        pp    l            l'],
+        ['p   p       pp     l            l'],
+        ['p ppp      pp      l            l'],
+        ['p   p     pp       l            l'],
+        ['ppp p    pp        l            l'],
+        ['p   p   pp         l            l'],
+        ['p ppp  pp          l            l'],
+        ['p     pp           l            l'],
+        ['ppppppppppppppppppppppppppppppppp'],
+        
+        
+    ],
+    
+    //Tenth map
+    [
+    ['ppppppppppppp'],
+    ['p    p      p'],
+    ['p #  p  p   p'],
+    ['p    p  p   p'],
+    ['p ppppp  p  p'],
+    ['p   lll      p'],
+    ['ppp lll  p  p'],
+    ['p   pppppp  p'],
+    ['p       ppppp'],
+    ['p   p       p'],
+    ['p   p   &   p'],
+    ['plppppppppppp'],
+    ['ppppppppppppp'],
+    ],
+    
+    //Eleventh map
+    [
+        
+        ['    &'],
+        ['l  lpl  l'],
+        [' p  #  p'],
+        ['    p'],
+        
+    ],
+    
+    //Twelth map
+    [
+        
+        ['    l'],
+        ['# pp'],
+        ['ppp &'],
+        ['    p'],
+        
+    ],
+    
+    //Thirteenth map
+    [
+    ['#'],
+        ['plrrrrylz'],
+        ['plzrrrllp'],
+        ['plyrrrllp'],
+        ['plrrprrlp'],
+        ['plzrrrylp'],
+        ['plprrrrlp'],
+        ['plryrrrlp'],
+        ['plrrrpzlp'],
+        ['pllyrrrlp'],
+        ['plrrrprlp'],
+        ['plrrrzrlp'],
+        ['plpyrrrlp'],
+        ['plrrryrlp'],
+        ['plzrrrllp'],
+        ['plrryrrlp'],
+        ['plrryrzlp'],
+        ['pl lllllp'],
+        ['plrrrpzlp'],
+        ['plprrrrlp'],
+        ['plzrrrylp'],
+        ['plrrrrrlp'],
+        ['plrrrlllp'],
+        ['plrrprrlp'],
+        ['plryrrrlp'],
+        ['plrprrrlp'],
+        ['plzrrrylp'],
+        ['plrrrprlp'],
+        ['plrrryrlp'],
+        ['plrrrzrlp'],
+        ['plrryrrlp'],
+        ['plrryrrlp'],
+        ['plpprrrlp'],
+        ['plllll lp'],
+        ['plprrrrlp'],
+        ['plrrrpzlp'],
+        ['plrryyrlp'],
+        ['plrrrrrlp'],
+        ['plrprrrlp'],
+        ['plrrprrlp'],
+        ['plzrrrylp'],
+        ['plrrrprlp'],
+        ['plrrrrrlp'],
+        ['plrrrzrlp'],
+        ['plrrprrlp'],
+        ['plrrrrrlp'],
+        ['plrryyrlp'],
+        ['plzrrrllp'],
+        ['plrrryrlp'],
+        ['plrryyrlp'],
+        ['plll lllp'],
+        ['plzrrrylp'],
+        ['plrprrlrp'],
+        ['plrrrrrlp'],
+        ['plrryyrlp'],
+        ['plrrrprlp'],
+        ['plzrrrylp'],
+        ['plprrrrlp'],
+        ['plrryyrlp'],
+        ['plrrryrlp'],
+        ['plrryrrlp'],
+        ['plzrrrylp'],
+        ['plrrrrrlp'],
+        ['plrrrrrlp'],
+        ['plrrrzrlp'],
+        ['plrrrrrlp'],
+        ['plll&lllp'],
+        ['ppppppppp'],
+    
+      
+    ],
+    
+    //Fourteenth map
+    [
+        
+        ['aaa#aaa'],
+        ['ppppppp'],
+        ['plaaalp'],
+        ['p&aaaaa'],
+        ['ppllllp'],
+        
+    ],
+    
+    //Fifteenth map
+    [
+        ['ppapaaaaaaaaaaaaa'],
+        ['paappaaaaaaapaaaa'],
+        ['pa&paaaaaaaapaapp'],
+        ['pppppaalllaappaap'],
+        ['#aaaaapaaaaapaapp'],
+        ['paaaappaaaaappaap'],
+        ['paaaappaaaaaaaapp'],
+        ['ppppppppppppppppp'],
+        
+    ],
+    
+    //Sixteenth map
+    [
+        ['aaap'],
+        ['aaap# p'],
+        ['lalpp p'],
+        ['  &'],
+        ['  p'],
+        
+    ],
+    
+    //Seventeenth map
+    [
+        ['lal'],
+        ['lalp'],
+        ['lalp# p'],
+        ['lalpp p'],
+        ['  &'],
+        ['  p'],
+        ['   p'],
+        [' p'],
+        
+    ],
+    
+    //Eighteenth map
+    [
+        
+        ['#alllla&a'],
+        ['ppppppppp'],
+        
+    ],
+    
+    //Ninteenth map
+    [
+        
+        ['aaaaaaaaaaaaaa'],
+        ['paaaaaaaaaaa&a'],
+        ['paaaaaaaappppp'],
+        ['pppaaaaaappaaa'],
+        ['pppaaaappppaaa'],
+        ['pppppa#pppppaa'],
+        ['pppppppppppppa']
+        
+    ],
+    
+    //Twentieth map
+    [
+        
+        ['#         &'],
+        ['paaaaaaaappp'],
+        
+    ],
+    
+    //21st map
+    [
+        ['aaaaaaaaaa&'],
+        ['paaaaaaaappp'],
+        ['aaaaapaaappp'],
+        ['paaaaaaaappp'],
+        ['aaapaaaaappp'],
+        ['paaaaaaaappp'],
+        ['aapaaaaaappp'],
+        ['paaaaaaaappp'],
+        ['ppllllaapppp'],
+        ['pppppppaappp'],
+        ['p#aaaaaapppp'],
+        ['ppllpllppppp'],
+        
+    ],
+    
+    //22nd map
+    [
+        
+        ['lllpaalalpaalallllaalaa&l'],
+        ['#alaaplalaaplalaaaaalaapl'],
+        ['pappaalalpaalalaaaaaapaal'],
+        ['laaaaplaaaaplaaaaaaaaaapl'],
+        ['lplplllppplllppllllllpppl']
+        
+    ],
+    
+    
+    
+];
+
+{
+
+var hack = false;//turn true to disable collisions
+
+var keys = [];
+keyPressed = function(){keys[keyCode]=true;};
+keyReleased = function(){keys[keyCode]=false;};
+}//Key config
+
+{
+    
+    var Platform = function(X1,X2,Y){
+        
+        stroke(0, 0, 0);
+        strokeWeight(3);
+        line(X1,Y,X2,Y);
+        
+        fill(0, 255, 0);
+        noStroke();
+        //rect(X1,Y,X2-X1,Y-v.t);
+        
+        if(p.x > X1&&p.x < X2&&p.y > Y-5&&p.y < Y+v.t+5){
+            
+            c.b = Y - 5;
+            
+        }
+        
+};//Platform
+    
+    var rightWall = function(X,Y1,Y2){
+        
+        stroke(0);
+        strokeWeight(3);
+        line(X,Y1,X,Y2);
+        
+        if(p.x > X&&p.y > Y1&&p.y < Y2&&p.x < X + v.t + 1&&!hack){
+            
+            v.l = v.r*1.01;
+            v.r = 0;
+            p.x = X;
+            
+            
+        }
+        
+};//Right wall
+    
+    var leftWall = function(X,Y1,Y2){
+        
+        stroke(0);
+        strokeWeight(3);
+        line(X,Y1,X,Y2);
+        
+        if(p.x < X&&p.y > Y1&&p.y < Y2&&p.x > X - v.t - 1&&!hack){
+            
+            v.r = v.l*1.01;
+            v.l = 0;
+            p.x = X;
+            
+            
+        }
+        
+};//Left wall
+    
+    var Ceiling = function(X1,X2,Y){
+        
+        stroke(0);
+        strokeWeight(3);
+        line(X1,Y,X2,Y);
+        
+        
+        if(p.x > X1&&p.x < X2&&p.y > Y-v.t&&p.y < Y&&!hack){
+            
+            v.u = 0;
+            p.y = Y;
+            
+        }
+        
+    };//Ceiling
+    
+    var Box = function(X,Y,Size){
+        
+        Platform(X,X+Size,Y);
+        Ceiling(X+10,X+Size-20,Y+Size);
+        rightWall(X,Y,Y+Size);
+        leftWall(X+Size,Y,Y+Size);
+        
+        
+    };//Box
+    
+    var Lava = function(X,Y,Size){
+    
+    fill(255, 51, 0);
+    stroke(255,52,0);
+    rect(X,Y,Size,Size);
+    
+    if(p.x > X&&p.x < X+Size&&p.y > Y&&p.y < Y+Size&&!hack){
+        
+        p.d = true;
+        
+        v.u = 0;
+        v.r = 0;
+        v.l = 0;
+        
+    }
+    
+    };//Lava box
+    
+    var Exit = function(X,Y,Size){
+    
+    noStroke();
+    
+    var i = color(sin(millis()/10)*127+127,sin(millis()/10+85)*127+127,sin(millis()/10+175)*127+127);
+    fill(i);
+    rect(X,Y,Size,Size);
+    
+    if(p.x > X&&p.x < X+Size&&p.y > Y&&p.y < Y+Size){
+        
+        m.l+=1;
+        m.c=true;
+        p.x = p.rX;
+        p.y = p.rY;
+        v.u = 0;
+        v.r = 0;
+        v.l = 0;
+        g.f = 400;
+        
+        if(m.l===maps.length){
+            GaSt+=1;
+            
+        }
+        
+    }
+    
+    };//Exit box
+    
+    var Vision = function(X,Y,Size){
+    
+    stroke(0);
+    strokeWeight(3);
+    ellipse(X,Y,10,10);
+    
+    };
+    
+}//Functions
+
+{
+    
+    for(var i = 0; i < 30;i++){
+        
+        g.x.push(p.x);
+        g.y.push(p.x);
+        g.v1.push(0);
+        g.v2.push(0);
+        g.s.push(random(2,3));
+        g.x.push(color(random(220,255),random(0,20),random(0,20)));
+        
+    }
+    
+}//Miscellanious
+
+
+
+   
+}//Game
+
+draw = function() {
+    //m.l = 21;
+    //Color Pulse settup
+    /**                 -----ExCoVa-----
+    It works by having each array value increase/decrease by its set value. For example, ExCoVa[1] will pulse at 1 RGB value change per frame(8.5 seconds for a full loop), while ExCoVa[5] will pulse at a steady rate of 5 RGB value change per frame (1.7 seconds for a full loop).The Algorithim for configuring the seconds it takes to loop is (510/X)/60. X is the array value
+    **/
+    
+    //GaSt=2;
+    //p=0;
+    
+    for(var i = 0; i < ExCoVar.length;i++){
+        
+        if(ExtraVa[i]){ExCoVar[i]+=i;}
+        else{ExCoVar[i]-=[i];}
+        if(ExCoVar[i]>=255){ExtraVa[i]=false;}
+        if(ExCoVar[i]<=0){ExtraVa[i]=true;}
+        
+    }
+    if(GaSt===0){
+    
+    
+    //init commands
+    Time+=1/60;
+    Time=round(Time);
+    textAlign(TOP,RIGHT);
+    var LogLength = 0;
+    background(0, 0, 0);
+    fill(0, 255, 0);
+    for(var i = 0; i < Log.length;i++){
+        
+        text(Log[i],5,i*15+15);
+        
+    }
+    var i = Log.length*15+15;
+    strokeWeight(2);
+    stroke(0, 255, 0);
+    line(5,i,10,i-5);
+    line(5,i-10,10,i-5);
+    /*if(round(Time/2)===Time/2){
+    line(12.5,i-10,12.5,i);
+    println('');
+    }*/
+    text(keyString,15,i);
+    
+    
+    }
+    if(GaSt===1){
+        pushMatrix();
+        translate(width/2-300,height/2-300);
+        if(Time < 255){Time+=1;}
+        background(Time,Time,Time,-Time+255);
+        textAlign(CENTER,CENTER);
+        textSize(50);
+        fill(ExCoVar[5]);
+        text('Loading...',300,300);
+        stroke(ExCoVar[4]);
+        strokeWeight(10);
+        var i = Time+255;
+        line(150,350,150+i/1.75,350);
+        textSize(12);
+        fill(ExCoVar[3]);
+        text(round(i/5.1)+ ' %',300,375);
+        if(Time>=255){GaSt = 2;p=0;Time = 0;}
+        popMatrix();
+    }
+    if(GaSt===2){
+        //p=49;
+        pushMatrix();
+        translate(width/2-300,height/2-300);
+        background(255);
+        fill(ExCoVar[5]);
+        stroke(0);
+        strokeWeight(5);
+        textSize(50);
+        p+=dist(0,p,0,100)/30;
+        text('Loading...',300,300-p);
+        noFill();
+        stroke(100);
+        Time = -p+100;
+        if(p>49){
+            
+            rect(200+Time,250+Time,200-Time*2,100-Time*2,20);
+            
+        }
+        fill(-p+275);
+        textSize(50);
+        text('START',300,300);
+        cursor(ARROW);
+        if(
+        mouseX>200+width/2-300+Time&&
+        mouseX<200+width/2-300+Time+200-Time*2&&
+        mouseY>250+height/2-300+Time&&
+        mouseY<250+height/2-300+Time+100-Time*2){
+            
+            cursor(HAND);
+            if(mousePressed){
+                
+                GaSt=3;
+                
+                p = {
+        
+        x:150,
+        y:250,
+        
+        rX:200,
+        rY:200,
+        
+        d:false,
+        de:3,
+        
+};//Player
+                
+            }
+            
+        }
+        popMatrix();
+        
+    }
+    if(GaSt===3){
+        
+        
+    {
+    
+            
+            if(p.x <= a.x){a.x-=dist(p.x,0,a.x,0)/a.s;}
+            if(p.x >= a.x){a.x+=dist(p.x,0,a.x,0)/a.s;}
+            if(p.y <= a.y){a.y-=dist(p.y,0,a.y,0)/a.s;}
+            if(p.y >= a.y){a.y+=dist(p.y,0,a.y,0)/a.s;}
+            
+            resetMatrix();
+            
+            scale(a.c);
+            
+            /*
+            if(mouseIsPressed){
+                
+                a.c=0.1;
+                a.t=10;
+                
+            }
+            else{
+                
+                a.c = 1;
+                a.t = 1;
+                
+            }
+            */
+            
+            translate(-a.x+width/2*a.t,-a.y+height/2*a.t);
+            
+            
+    }//Translate (camera) logic
+    
+    {
+            
+            Vision(0,0);
+            
+            for(var i = 1; i < 10;i++){
+                    
+                    if(keys[i+96]){m.l = i+10;}
+                    if(keys[48]){m.l = 10;}
+                    if(keys[i+48]){m.l = i-1;}
+                    
+                }
+            
+            background(255, 255, 255);
+            
+            strokeWeight(3);
+            
+            for(var i = 0; i < maps[m.l].length;i++){
+                
+                var x = [''];
+                
+                if(i >= 1){
+                    
+                    x = maps[m.l][i-1][0].split('');
+                    
+                }
+                var s = [''];
+                if(i <= maps[m.l].length-2){
+                    
+                    s = maps[m.l][i+1][0].split('');
+                    
+                }
+                var k = maps[m.l][i][0].split('');
+                
+                for(var j = 0; j < k.length;j++){
+                    
+                    if(k[j]==='p'){
+                        
+                        stroke(75);
+                        fill(75);
+                        rect(j*100,i*100,100,100);
+                        
+                        strokeWeight(3);
+                        stroke(0);
+                if(x[j]!=='p'){Platform(j*100,j*100+100,i*100);}
+                if(s[j]!=='p'){Ceiling(j*100,j*100+100,i*100+100);}
+                if(k[j-1]!=='p'){rightWall(j*100,i*100,i*100+100);}
+                if(k[j+1]!=='p'){leftWall(j*100+100,i*100,i*100+100);}
+                        
+                        
+                        
+                    }
+                    if(k[j]==='#'){
+                        
+                        p.rX = j*100+50;
+                        p.rY = i*100+50;
+                        
+                    }
+                    if(k[j]==='&'){
+                        
+                        Exit(j*100+25,i*100+50,50);
+                        
+                    }
+                    if(k[j]==='l'){
+                        
+                        Lava(j*100,i*100,100);
+                        
+                    }
+                    
+                }
+                
+            }
+            
+            
+            
+    }//Map config
+    
+    {
+        
+        stroke(0, 47, 89);
+        strokeWeight(9);
+        if(!p.d){point(p.x,p.y);}
+        
+        cursor(CROSS);
+        
+        pushMatrix();
+        resetMatrix();
+        noStroke();
+        fill(0,0,0,g.f);
+        rect(0,0,width,height);
+        
+        if(m.l!==0){
+            
+            textAlign(CENTER,CENTER);
+            textSize(width/10+height/10);
+            fill(255, 255, 255,g.f);
+            var k = m.l+1;
+            text('Level ' + k,width/2,height/2);
+            
+        }
+        
+        popMatrix();
+        
+        if(round(p.de)<round(m.t)){
+            
+            p.d=false;
+            p.x = p.rX;
+            p.y = p.rY;
+            
+        }
+        if(p.d){
+            
+            v.x = 0;
+            v.y = 0;
+            for(var i = 0; i < 30;i++){
+                
+                g.x[i]+=g.v1[i];
+                g.y[i]+=g.v2[i];
+                g.v2[i]+=0.1;
+                strokeWeight(g.s[i]);
+                stroke(g.c[i]);
+                point(g.x[i],g.y[i]);
+                
+            }
+            
+        }
+        else{
+            
+            p.de=m.t+1;
+            for(var i = 0; i < 30;i++){
+                
+                g.x[i]=p.x;
+                g.y[i]=p.y;
+                g.v1[i]=random(-5,5);
+                g.v2[i]=random(-5,5);
+                g.s[i]=random(3,5);
+                g.c[i]=color(random(200,255),0,0);
+                
+            }
+            
+        }
+        
+        
+    }//Graphics
+    
+    {
+            
+            if(p.y > c.b){
+                
+                c.bB = true;
+                
+            }
+            else{c.bB = false;}
+            if(c.bB&&!keys[87]){
+                
+                v.u = 0;
+                p.y = c.b;
+                
+            }
+            
+            c.b = 100000;
+            
+    }//Collison
+    
+    {
+            
+            if(keys[65]&&v.l < v.t){v.l+=0.2;}
+            if(!keys[65]&&v.l > 0){v.l-=dist(0,0,0,v.l)/10;}
+            
+            if(keys[68]&&v.r < v.t){v.r+=0.2;}
+            if(!keys[68]&&v.r > 0){v.r-=dist(0,0,0,v.r)/10;}
+            
+            p.x+=v.r;
+            p.x-=v.l;
+            p.y-=v.u;
+            
+            if(!c.bB&&v.u < v.t){
+                
+                v.u-=0.25;
+                
+            }
+            
+            if(keys[87]&&c.bB){
+                
+                v.u = 7.5;
+                
+            }
+            
+            
+            
+            
+    }//Velocity
+    
+    {
+        
+        if(keys[82]){
+            
+            p.x = p.rX;
+            p.y = p.rY;
+            
+        }//Restart level
+        
+        if(p.y > maps[m.l].length*100+500){
+            
+            p.y = p.rY;
+            p.x = p.rX;
+            v.u = 0;
+            v.r = 0;
+            v.l = 0;
+            
+        }//Out of bounds
+        
+        if(g.f > 0){g.f-=2;}//Level fade
+        
+        m.t+=1/60;//Time keeping
+        
+    }//Miscellanious
+    
+        
+    }
+    if(GaSt===4){
+        
+        background(255, 255, 255);
+        
+        
+    }
+    
+    
+};
+
+keyPressed = function(){
+    
+    keys[keyCode]=true;
+    var banKey = [10,8,16,20,17,157];
+    var keyAllowed = true;
+    for(var i = 0; i < banKey.length;i++){
+        
+        if(banKey[i]===keyCode){keyAllowed=false;}
+        
+    }
+    if(keys[8]){keyArray.pop();}
+    if(keyAllowed){
+        
+        keyArray.push(key);
+        
+    }
+    keyString = keyArray.join('');
+    if(keys[10]){
+        
+        
+        Log.push('> ' + keyString);
+        Log.push('');
+        Parser(keyString);
+        keyString = '';
+        keyArray = [];
+        
+    }
+    //println(keyCode);
+    
+    
+};
+
+keyReleased = function(){
+
+keys[keyCode]=false;
+
+};
+      
+    }};
+
+  // Get the canvas that ProcessingJS will use
+  var canvas = document.getElementById("mycanvas"); 
+  // Pass the function to ProcessingJS constructor
+  var processingInstance = new Processing(canvas, programCode); 
+  </script>
+</html>

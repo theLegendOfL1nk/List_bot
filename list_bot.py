@@ -12,8 +12,9 @@ import aiohttp.web
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
-UPTIME_TEMPLATE_FILE = "uptExtCode.html" # New: HTML template file name
-BOT_START_TIME = time.time() # New: Tracks the time the bot process started
+UPTIME_TEMPLATE_FILE = "uptExtCode.html"
+GAME_TEMPLATE_FILE = "game.html" # New: HTML template file name for the game
+BOT_START_TIME = time.time() 
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
@@ -53,7 +54,8 @@ MAX_MESSAGE_LENGTH = 1900
 INITIAL_DATA_LIST = [] 
 
 data_list = []
-UPTIME_TEMPLATE_CONTENT = "" # New: Global variable to hold the loaded HTML template
+UPTIME_TEMPLATE_CONTENT = ""
+GAME_TEMPLATE_CONTENT = "" # New: Global variable for game template
 
 # SORT_CONFIGS is reduced to only Item and Name
 SORT_CONFIGS = {
@@ -99,7 +101,7 @@ view_message_tracker = {}
 
 # Functions for data persistence
 # ----------------------------------------------------
-# 1. Synchronous (Blocking) Helpers - (Stability Fix)
+# 1. Synchronous (Blocking) Helpers
 # ----------------------------------------------------
 def _load_data_list_sync():
     """Synchronous function to load data from file, which can block the event loop."""
@@ -133,7 +135,7 @@ def _load_data_list_sync():
             row.append(0) 
         cleaned_data_list.append(row)
 
-    data_list = cleaned_data_list # Update global list once, safely
+    data_list = cleaned_data_list 
     return len(data_list)
 
 def _save_data_list_sync():
@@ -163,8 +165,23 @@ def _load_uptime_template_sync():
         print(f"HTML template file {UPTIME_TEMPLATE_FILE} not found. Falling back to plain text.")
         UPTIME_TEMPLATE_CONTENT = "<h1>Error: Uptime template not found.</h1>"
 
+def _load_game_template_sync(): # New: Sync loader for game template
+    """Synchronous function to load the HTML game template file."""
+    global GAME_TEMPLATE_CONTENT
+    if os.path.exists(GAME_TEMPLATE_FILE):
+        try:
+            with open(GAME_TEMPLATE_FILE, "r") as f:
+                GAME_TEMPLATE_CONTENT = f.read()
+            print(f"Successfully loaded HTML template from {GAME_TEMPLATE_FILE} (Sync).")
+        except IOError as e:
+            print(f"ERROR: Failed to read HTML template from {GAME_TEMPLATE_FILE}: {e}. Falling back to plain text.")
+            GAME_TEMPLATE_CONTENT = "<h1>Error loading game template.</h1>"
+    else:
+        print(f"Game template file {GAME_TEMPLATE_FILE} not found. Falling back to plain text.")
+        GAME_TEMPLATE_CONTENT = "<h1>Error: Game template not found.</h1>"
+
 # ----------------------------------------------------
-# 2. Asynchronous (Non-Blocking) Wrappers (Stability Fix)
+# 2. Asynchronous (Non-Blocking) Wrappers
 # ----------------------------------------------------
 async def load_data_list():
     """Asynchronous wrapper to load data in a separate thread."""
@@ -177,6 +194,10 @@ async def save_data_list():
 async def load_uptime_template():
     """Asynchronous wrapper to load the HTML template in a separate thread."""
     await asyncio.to_thread(_load_uptime_template_sync)
+
+async def load_game_template(): # New: Async loader for game template
+    """Asynchronous wrapper to load the HTML game template in a separate thread."""
+    await asyncio.to_thread(_load_game_template_sync)
 
 class EphemeralListView(View):
     def __init__(self, initial_sort_key: str, timeout=300):
@@ -237,7 +258,7 @@ class PersistentListPromptView(View):
                     )
                     await log_channel.send(log_message)
                 except discord.Forbidden:
-                    print(f"Log Error: No permission to send messages in log channel {EPHEHERAL_REQUEST_LOG_CHANNEL_ID}.")
+                    print(f"Log Error: No permission to send messages in log channel {EPHEMHERAL_REQUEST_LOG_CHANNEL_ID}.")
                 except Exception as e:
                     print(f"Log Error: Failed to send log to channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}: {e}")
             else:
@@ -300,7 +321,7 @@ async def update_data_for_auto(item_val, name_val):
         data_list.append(new_row)
 
     _update_last_changed_details(item_val, name_val, final_cost)
-    await save_data_list() # Stability Fix: ADD await
+    await save_data_list() 
     print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
     return final_cost
 
@@ -312,7 +333,7 @@ def format_list_for_display(data, col_indices, headers):
     widths = [len(h) for h in headers]
     for r in data:
         # data rows now have 4 elements (Item, Name, Cost, Timestamp)
-        disp_row = [str(r[i]) for i in col_indices]
+        disp_row = [str(r[i]) for r in col_indices]
         for i, val in enumerate(disp_row):
             widths[i] = max(widths[i], len(val))
 
@@ -386,7 +407,7 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
         timestamp_line = f"Last Updated: {timestamp_base} | {part_header}{ts_msg_base}"
 
         # Recalculate content length, leaving space for the timestamp and code block
-        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 # +1 for newline
+        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
             # If a part is still too big, this is the fall-back
             final_message_parts.append(f"List is too large to display. Please contact an admin.")
@@ -570,7 +591,7 @@ async def handle_manual_add_command(m: discord.Message):
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
 
     _update_last_changed_details(item_in, name_in, final_cost)
-    await save_data_list() # Stability Fix: ADD await
+    await save_data_list() 
     await m.channel.send(resp)
     await update_all_persistent_list_prompts()
     try:
@@ -595,7 +616,7 @@ async def handle_delete_command(message: discord.Message):
     data_list = [r for r in data_list if r[0].lower() != item_to_delete.lower()]
     
     if len(data_list) < original_len:
-        await save_data_list() # Stability Fix: ADD await
+        await save_data_list() 
         await update_all_persistent_list_prompts()
         await message.channel.send(f"Item '{item_to_delete}' deleted.")
         if last_updated_item_details.get("item_val") and \
@@ -780,13 +801,15 @@ async def on_ready():
 
     print(f'{client.user.name} ({client.user.id}) connected!')
     
-    # --- New: Load HTML Template ---
+    # --- New: Load HTML Templates ---
     print("Loading uptime HTML template...")
     await load_uptime_template()
+    print("Loading game HTML template...")
+    await load_game_template()
     # -----------------------------
 
     print("Loading data from file...")
-    await load_data_list() # Stability Fix: ADD await
+    await load_data_list() 
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
     print(f'Admins: {ADMIN_USER_IDS}')
     print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
@@ -848,13 +871,12 @@ async def on_message(m: discord.Message):
             return
 
 
-# --- Updated Uptime Handler Function ---
+# --- Uptime Handler Function ---
 async def handle_uptime(request):
     """Handler for the /uptime route, using the pre-loaded HTML template."""
     global UPTIME_TEMPLATE_CONTENT
 
     if not UPTIME_TEMPLATE_CONTENT:
-        # Fallback if the template failed to load during startup
         print("Template content empty, attempting reload.")
         await load_uptime_template()
         if not UPTIME_TEMPLATE_CONTENT:
@@ -868,9 +890,6 @@ async def handle_uptime(request):
     
     # 2. Format the Template
     try:
-        # The .format() call expects placeholders like {days}, {hours}, etc.
-        # If the HTML contains unescaped braces like in CSS (e.g., {color: red;}), 
-        # it will fail. Make sure the HTML uses {{ and }} for literal braces.
         html_content = UPTIME_TEMPLATE_CONTENT.format(
             days=f"{uptime_days:02d}",
             hours=f"{uptime_hours:02d}",
@@ -878,7 +897,6 @@ async def handle_uptime(request):
             timestamp_check=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
         )
     except KeyError as e:
-        # This catches the exact error the user saw, confirming the HTML needs fixing.
         error_msg = (
             f"Error rendering template: Missing placeholder {e}. "
             f"Likely cause: Unescaped curly braces in the HTML (especially in CSS/JS). "
@@ -892,15 +910,33 @@ async def handle_uptime(request):
     return aiohttp.web.Response(text=html_content, content_type='text/html')
 # -----------------------------------
 
+# --- New Game Handler Function ---
+async def handle_game(request):
+    """Handler for the /game route, serving the game HTML template."""
+    global GAME_TEMPLATE_CONTENT
+
+    if not GAME_TEMPLATE_CONTENT:
+        print("Game Template content empty, attempting reload.")
+        await load_game_template()
+        if not GAME_TEMPLATE_CONTENT or "Error loading game template" in GAME_TEMPLATE_CONTENT:
+            return aiohttp.web.Response(text="Error: HTML game template is missing.", content_type='text/plain', status=500)
+
+    # The game template is static and doesn't require formatting.
+    return aiohttp.web.Response(text=GAME_TEMPLATE_CONTENT, content_type='text/html')
+# -----------------------------------
+
 
 async def web_server():
     app = aiohttp.web.Application()
     # Existing route for the root (/)
     app.router.add_get("/", lambda r: aiohttp.web.Response(text="Bot is running!"))
 
-    # --- NEW UPTIME ROUTE ---
+    # --- UPTIME ROUTE ---
     app.router.add_get("/uptime", handle_uptime)
-    # ------------------------
+    
+    # --- NEW GAME ROUTE ---
+    app.router.add_get("/game", handle_game)
+    # ----------------------
 
     runner = aiohttp.web.AppRunner(app)
     await runner.setup()
