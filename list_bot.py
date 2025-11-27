@@ -12,6 +12,7 @@ import aiohttp.web
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
+BOT_START_TIME = time.time() # New: Tracks the time the bot process started
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
@@ -45,182 +46,9 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
-INITIAL_DATA_LIST = [
-  [
-    "Bandage",
-    "Mnesia",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Rice",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Corn",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Soil",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Triangle",
-    "CuteMiffy",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Sawblade",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Rock",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Faster",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Fang",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Shell",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Claw",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Plank",
-    "nts2z",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Bulb",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Starfish",
-    "maru7024",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Card",
-    "hqyx",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Air",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Chip",
-    "Animi",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Beetle egg",
-    "abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Wing",
-    "blow",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Poo",
-    "blow",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Coin",
-    "Char",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Yucca",
-    "6B6I",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Clover",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Glass",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Privet Berry",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Sand",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Antennae",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Ant Egg",
-    "tianleshan",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Cactus",
-    "tianleshan",
-    "1",
-    1764267576.0
-  ],
-]
+# INITIAL_DATA_LIST is removed as you are using data.json now, 
+# but a placeholder is kept for robust startup.
+INITIAL_DATA_LIST = [] 
 
 data_list = []
 
@@ -237,7 +65,6 @@ SORT_CONFIGS = {
         "column_order_indices": [1, 0, 2], "headers": ["Name", "Item", "Cost"]
     }
 }
-# Cost, Recent, and Owner sort configs have been removed per request.
 
 UPDATE_NOTIFICATION_CONFIG = [
     {
@@ -269,7 +96,7 @@ view_message_tracker = {}
 
 # Functions for data persistence
 # ----------------------------------------------------
-# 1. Synchronous (Blocking) Helpers - Renamed to be private/sync (Stability Fix)
+# 1. Synchronous (Blocking) Helpers - (Stability Fix)
 # ----------------------------------------------------
 def _load_data_list_sync():
     """Synchronous function to load data from file, which can block the event loop."""
@@ -293,16 +120,17 @@ def _load_data_list_sync():
         print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data (Sync).")
         temp_data_list = list(INITIAL_DATA_LIST)
 
-    # Ensure all rows have a timestamp (index 3) for the new Recent filter (kept for data integrity)
+    # Ensure all rows have the 4-element structure
+    cleaned_data_list = []
     for row in temp_data_list:
         if len(row) > 2:
-            # Ensure cost is stored as a string
-            row[2] = str(row[2])
-        # If old data is loaded (length < 4), append a 0 timestamp
-        if len(row) < 4:
-            row.append(0)
+            row[2] = str(row[2]) # Ensure cost is a string
+        # Pad old data (length < 4) with defaults
+        while len(row) < 4:
+            row.append(0) 
+        cleaned_data_list.append(row)
 
-    data_list = temp_data_list # Update global list once, safely
+    data_list = cleaned_data_list # Update global list once, safely
     return len(data_list)
 
 def _save_data_list_sync():
@@ -345,7 +173,6 @@ class EphemeralListView(View):
                     child.style = ButtonStyle.secondary
 
     async def _update_ephemeral_message(self, interaction: discord.Interaction, new_sort_key: str):
-        # NOTE: Only Item and Name keys are passed here due to the decorator functions below.
         self.current_sort_key = new_sort_key
         self._update_button_states()
         full_content_parts = format_sorted_list_content(new_sort_key, is_ephemeral=True)
@@ -462,15 +289,13 @@ def format_list_for_display(data, col_indices, headers):
     # Calculate max widths for each column based on headers and data
     widths = [len(h) for h in headers]
     for r in data:
-        # NOTE: data rows now have 4 elements (Item, Name, Cost, Timestamp)
-        # We only display the first 3 elements defined by col_indices.
+        # data rows now have 4 elements (Item, Name, Cost, Timestamp)
         disp_row = [str(r[i]) for i in col_indices]
         for i, val in enumerate(disp_row):
             widths[i] = max(widths[i], len(val))
 
     # Calculate padding for each column.
     padding = [2] * len(widths)
-    # The total line length is the sum of widths and padding
     total_line_length = sum(widths) + sum(padding) - padding[-1]
 
     # Dynamically adjust formatting if the line length is too large
@@ -512,7 +337,6 @@ def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     current_epoch = int(time.time())
     timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)"
 
-    # Since only Item and Name remain, the logic is simplified
     if not list_data_source:
         timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
         return [timestamp_line]
@@ -693,6 +517,9 @@ async def handle_manual_add_command(m: discord.Message):
     resp = ""
     final_cost = "1"
 
+    # Send initial ack response BEFORE the save to prevent Discord timeout on slow I/O
+    await m.add_reaction("✍️") 
+
     for i, r in enumerate(data_list):
         if r[0].lower() == item_in.lower():
             found_idx = i
@@ -711,13 +538,11 @@ async def handle_manual_add_command(m: discord.Message):
             except:
                 final_cost = "1"
         row_to_update[2] = final_cost
-        # Update timestamp (kept for data structure integrity)
         row_to_update[3] = current_time_epoch
         data_list.append(row_to_update)
         resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
     else:
         final_cost = cost_s if cost_s else "1"
-        # Add timestamp (kept for data structure integrity)
         new_row = [item_in, name_in, final_cost, current_time_epoch]
         data_list.append(new_row)
         resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
@@ -726,6 +551,11 @@ async def handle_manual_add_command(m: discord.Message):
     await save_data_list() # Stability Fix: ADD await
     await m.channel.send(resp)
     await update_all_persistent_list_prompts()
+    try:
+        await m.clear_reactions()
+        await m.add_reaction("✅")
+    except:
+        pass
 
 
 async def handle_delete_command(message: discord.Message):
@@ -736,16 +566,30 @@ async def handle_delete_command(message: discord.Message):
     item_to_delete = parts_str[1:-1]
     global data_list
     original_len = len(data_list)
+    
+    await message.add_reaction("✍️")
+
     # Filter by item name (index 0). Retain existing 4-element structure
     data_list = [r for r in data_list if r[0].lower() != item_to_delete.lower()]
+    
     if len(data_list) < original_len:
+        await save_data_list() # Stability Fix: ADD await
+        await update_all_persistent_list_prompts()
         await message.channel.send(f"Item '{item_to_delete}' deleted.")
         if last_updated_item_details.get("item_val") and \
            last_updated_item_details["item_val"].lower() == item_to_delete.lower():
             _update_last_changed_details(None, None, None)
-        await save_data_list() # Stability Fix: ADD await
-        await update_all_persistent_list_prompts()
+        try:
+            await message.clear_reactions()
+            await message.add_reaction("✅")
+        except:
+            pass
     else:
+        try:
+            await message.clear_reactions()
+            await message.add_reaction("❌")
+        except:
+            pass
         await message.channel.send(f"Item '{item_to_delete}' not found.")
 
 
@@ -828,6 +672,8 @@ async def handle_raw_list_command(m: discord.Message):
         await m.channel.send("`data_list` is empty.")
         return
 
+    await m.add_reaction("💾")
+
     # Dump the data_list to a JSON string with an indent for readability
     raw_json = json.dumps(data_list, indent=2)
 
@@ -861,6 +707,7 @@ async def handle_raw_list_command(m: discord.Message):
         await asyncio.sleep(0.5)
 
     try:
+        await m.clear_reactions()
         await m.add_reaction("✅")
     except:
         pass
@@ -973,9 +820,29 @@ async def on_message(m: discord.Message):
             return
 
 
+# --- New Uptime Handler Function ---
+async def handle_uptime(request):
+    """Handler for the /uptime route."""
+    uptime_seconds = time.time() - BOT_START_TIME
+    uptime_days = int(uptime_seconds // (24 * 3600))
+    uptime_hours = int((uptime_seconds % (24 * 3600)) // 3600)
+    uptime_minutes = int((uptime_seconds % 3600) // 60)
+    uptime_string = f"Bot Uptime: {uptime_days}d {uptime_hours}h {uptime_minutes}m"
+
+    # Returns the uptime as plain text
+    return aiohttp.web.Response(text=uptime_string, content_type='text/plain')
+# -----------------------------------
+
+
 async def web_server():
     app = aiohttp.web.Application()
+    # Existing route for the root (/)
     app.router.add_get("/", lambda r: aiohttp.web.Response(text="Bot is running!"))
+
+    # --- NEW UPTIME ROUTE ---
+    app.router.add_get("/uptime", handle_uptime)
+    # ------------------------
+
     runner = aiohttp.web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 8080))
