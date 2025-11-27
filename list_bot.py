@@ -12,12 +12,13 @@ import aiohttp.web
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
+UPTIME_TEMPLATE_FILE = "uptExtCode.html" # New: HTML template file name
 BOT_START_TIME = time.time() # New: Tracks the time the bot process started
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
 ADMIN_USER_IDS = [
-    YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
+    YOUR_USER_ID, 1188633780261507102,
     934249510127935529, 504748495933145103, 1095468010564767796
 ]
 
@@ -46,11 +47,203 @@ DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 SECONDS_IN_WEEK = 604800
 MAX_MESSAGE_LENGTH = 1900
 
-# INITIAL_DATA_LIST is removed as you are using data.json now, 
-# but a placeholder is kept for robust startup.
-INITIAL_DATA_LIST = [] 
+INITIAL_DATA_LIST = [
+  [
+    "Bandage",
+    "Mnesia",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Rice",
+    "craft_super",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Corn",
+    "-Sam8375",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Soil",
+    "-Sam8375",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Triangle",
+    "CuteMiffy",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Sawblade",
+    "wolxs",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Rock",
+    "wolxs",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Faster",
+    "wolxs",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Fang",
+    "wolxs",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Shell",
+    "wolxs",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Claw",
+    "wolxs",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Plank",
+    "nts2z",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Bulb",
+    "-Sam8375",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Starfish",
+    "maru7024",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Card",
+    "hqyx",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Air",
+    "Abstract",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Chip",
+    "Animi",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Beetle egg",
+    "abstract",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Wing",
+    "blow",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Poo",
+    "blow",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Coin",
+    "Char",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Yucca",
+    "6B6I",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Clover",
+    "craft_super",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Privet Berry",
+    "Abstract",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Antennae",
+    "-Sam8375",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Ant Egg",
+    "tianleshan",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Cactus",
+    "tianleshan",
+    "1",
+    1764267576.0
+  ],
+  [
+    "Glass",
+    "Minenwerfer",
+    "1",
+    1764203269.2663631
+  ],
+  [
+    "Missile",
+    "Missile",
+    "1",
+    1764203281.944082
+  ],
+  [
+    "Pincer",
+    "Luai2",
+    "1",
+    1764203298.9778957
+  ],
+  [
+    "Iris",
+    "craft_super",
+    "1",
+    1764203321.9409359
+  ],
+  [
+    "Sand",
+    "Luai2",
+    "1",
+    1764203328.8118267
+  ]
+]
 
 data_list = []
+UPTIME_TEMPLATE_CONTENT = "" # New: Global variable to hold the loaded HTML template
 
 # SORT_CONFIGS is reduced to only Item and Name
 SORT_CONFIGS = {
@@ -145,6 +338,21 @@ def _save_data_list_sync():
     except (IOError, TypeError) as e:
         print(f"ERROR: Failed to save data to {DATA_FILE} (Sync): {e}")
 
+def _load_uptime_template_sync():
+    """Synchronous function to load the HTML template file."""
+    global UPTIME_TEMPLATE_CONTENT
+    if os.path.exists(UPTIME_TEMPLATE_FILE):
+        try:
+            with open(UPTIME_TEMPLATE_FILE, "r") as f:
+                UPTIME_TEMPLATE_CONTENT = f.read()
+            print(f"Successfully loaded HTML template from {UPTIME_TEMPLATE_FILE} (Sync).")
+        except IOError as e:
+            print(f"ERROR: Failed to read HTML template from {UPTIME_TEMPLATE_FILE}: {e}. Falling back to plain text.")
+            UPTIME_TEMPLATE_CONTENT = "<h1>Error loading template.</h1>"
+    else:
+        print(f"HTML template file {UPTIME_TEMPLATE_FILE} not found. Falling back to plain text.")
+        UPTIME_TEMPLATE_CONTENT = "<h1>Error: Uptime template not found.</h1>"
+
 # ----------------------------------------------------
 # 2. Asynchronous (Non-Blocking) Wrappers (Stability Fix)
 # ----------------------------------------------------
@@ -155,6 +363,10 @@ async def load_data_list():
 async def save_data_list():
     """Asynchronous wrapper to save data in a separate thread."""
     await asyncio.to_thread(_save_data_list_sync)
+
+async def load_uptime_template():
+    """Asynchronous wrapper to load the HTML template in a separate thread."""
+    await asyncio.to_thread(_load_uptime_template_sync)
 
 class EphemeralListView(View):
     def __init__(self, initial_sort_key: str, timeout=300):
@@ -757,6 +969,12 @@ async def on_ready():
     last_on_ready_timestamp = current_time
 
     print(f'{client.user.name} ({client.user.id}) connected!')
+    
+    # --- New: Load HTML Template ---
+    print("Loading uptime HTML template...")
+    await load_uptime_template()
+    # -----------------------------
+
     print("Loading data from file...")
     await load_data_list() # Stability Fix: ADD await
     print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
@@ -820,17 +1038,39 @@ async def on_message(m: discord.Message):
             return
 
 
-# --- New Uptime Handler Function ---
+# --- Updated Uptime Handler Function ---
 async def handle_uptime(request):
-    """Handler for the /uptime route."""
+    """Handler for the /uptime route, using the pre-loaded HTML template."""
+    global UPTIME_TEMPLATE_CONTENT
+
+    if not UPTIME_TEMPLATE_CONTENT:
+        # Fallback if the template failed to load during startup
+        await load_uptime_template()
+        if not UPTIME_TEMPLATE_CONTENT:
+            return aiohttp.web.Response(text="Error: HTML template is missing.", content_type='text/plain', status=500)
+
+    # 1. Calculate Uptime
     uptime_seconds = time.time() - BOT_START_TIME
     uptime_days = int(uptime_seconds // (24 * 3600))
     uptime_hours = int((uptime_seconds % (24 * 3600)) // 3600)
     uptime_minutes = int((uptime_seconds % 3600) // 60)
-    uptime_string = f"Bot Uptime: {uptime_days}d {uptime_hours}h {uptime_minutes}m"
+    
+    # 2. Format the Template
+    try:
+        html_content = UPTIME_TEMPLATE_CONTENT.format(
+            days=f"{uptime_days:02d}",
+            hours=f"{uptime_hours:02d}",
+            minutes=f"{uptime_minutes:02d}",
+            timestamp_check=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        )
+    except KeyError as e:
+        # Catch errors if placeholders are missing in the template file
+        error_msg = f"Error rendering template: Missing placeholder {e}."
+        print(error_msg)
+        html_content = f"<h1>{error_msg}</h1>"
 
-    # Returns the uptime as plain text
-    return aiohttp.web.Response(text=uptime_string, content_type='text/plain')
+    # 3. Return the HTML response
+    return aiohttp.web.Response(text=html_content, content_type='text/html')
 # -----------------------------------
 
 

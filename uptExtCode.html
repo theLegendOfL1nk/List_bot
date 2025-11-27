@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Status: Online</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c2f33; /* Discord dark theme color */
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .status-card {
+            background-color: #36393f; /* Discord card color */
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        .status-header {
+            font-size: 24px;
+            font-weight: 600;
+            color: #43b581; /* Discord success color */
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .status-header span {
+            margin-right: 10px;
+            font-size: 30px;
+        }
+        .uptime-detail {
+            font-size: 18px;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #2f3136;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .time-label {
+            color: #b9bbbe;
+        }
+        .time-value {
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #72767d;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-card">
+        <div class="status-header">
+            <span style="color: #43b581;">&#x2713;</span>
+            Bot is Online
+        </div>
+        <div class="uptime-detail">
+            <span class="time-label">Days:</span>
+            <span class="time-value">{days}</span>
+        </div>
+        <div class="uptime-detail">
+            <span class="time-label">Hours:</span>
+            <span class="time-value">{hours}</span>
+        </div>
+        <div class="uptime-detail">
+            <span class="time-label">Minutes:</span>
+            <span class="time-value">{minutes}</span>
+        </div>
+        <div class="footer">
+            Powered by Render. Last checked: {timestamp_check}
+        </div>
+    </div>
+</body>
+</html>
