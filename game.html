@@ -668,7 +668,7 @@ keyReleased = function(){keys[keyCode]=false;};
     
     noStroke();
     
-    var i = color(sin(millis()/10)*127+127,sin(millis()/10+85)*127+127,sin(millis()/10+175)*127+127);
+    var i = color(0,255,0);
     fill(i);
     rect(X,Y,Size,Size);
     
@@ -743,6 +743,23 @@ draw = function() {
     if(GaSt===0){
     
     
+                
+                GaSt=3;
+                
+                p = {
+        
+        x:150,
+        y:250,
+        
+        rX:200,
+        rY:200,
+        
+        d:false,
+        de:3,
+        
+};//Player
+                
+            
     //init commands
     Time+=1/60;
     Time=round(Time);
