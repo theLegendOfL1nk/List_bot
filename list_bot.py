@@ -1,5 +1,7 @@
 import os
 import discord
+from discord import app_commands
+from discord.ext import commands 
 import re
 import time
 import asyncio
@@ -12,26 +14,13 @@ import aiohttp.web
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
-UPTIME_TEMPLATE_FILE = "uptExtCode.html"
-GAME_TEMPLATE_FILE = "game.html" # New: HTML template file name for the game
-BOT_START_TIME = time.time() 
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
-
-# User ID 1020489591800729610 has been removed as requested.
 ADMIN_USER_IDS = [
-    YOUR_USER_ID, 1188633780261507102,
+    YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
     934249510127935529, 504748495933145103, 1095468010564767796
 ]
-
-RESTART_COMMAND = "list.bot restart"
-MANUAL_ADD_COMMAND_PREFIX = "list.bot add"
-CLOSE_LISTS_COMMAND = "list.bot close"
-ANNOUNCE_COMMAND = "list.bot announce"
-DELETE_COMMAND_PREFIX = "list.bot delete"
-SAY_COMMAND_PREFIX = "list.bot say"
-RAW_LIST_COMMAND = "list.bot raw"
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -44,213 +33,52 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
+# GLOBAL VARIABLES FOR PERSISTENT DATA
+data_list = []
 channel_list_states = {}
 DEFAULT_PERSISTENT_SORT_KEY = "sort_config_item"
 
 SECONDS_IN_WEEK = 604800
-MAX_MESSAGE_LENGTH = 1800
+MAX_MESSAGE_LENGTH = 1900
 
-# Changed to an empty list as requested. Data will only load from data.json or manual commands.
-INITIAL_DATA_LIST = [
-  [
-    "Bandage",
-    "Mnesia",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Rice",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Corn",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Soil",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Triangle",
-    "CuteMiffy",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Sawblade",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Rock",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Faster",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Fang",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Shell",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Claw",
-    "wolxs",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Plank",
-    "nts2z",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Bulb",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Starfish",
-    "maru7024",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Card",
-    "hqyx",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Air",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Chip",
-    "Animi",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Beetle egg",
-    "abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Wing",
-    "blow",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Poo",
-    "blow",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Coin",
-    "Char",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Yucca",
-    "6B6I",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Clover",
-    "craft_super",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Privet Berry",
-    "Abstract",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Antennae",
-    "-Sam8375",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Ant Egg",
-    "tianleshan",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Cactus",
-    "tianleshan",
-    "1",
-    1764267576.0
-  ],
-  [
-    "Glass",
-    "Minenwerfer",
-    "1",
-    1764203269.2663631
-  ],
-  [
-    "Missile",
-    "Missile",
-    "1",
-    1764203281.944082
-  ],
-  [
-    "Pincer",
-    "Luai2",
-    "1",
-    1764203298.9778957
-  ],
-  [
-    "Iris",
-    "craft_super",
-    "1",
-    1764203321.9409359
-  ],
-  [
-    "Sand",
-    "Luai2",
-    "1",
-    1764203328.8118267
-  ]
-]
+INITIAL_DATA_LIST = []
+# --- END CONFIGURATION ---
 
-data_list = []
-UPTIME_TEMPLATE_CONTENT = ""
-GAME_TEMPLATE_CONTENT = "" # New: Global variable for game template
 
-# SORT_CONFIGS is reduced to only Item and Name
+# --- CLIENT SETUP ---
+intents = discord.Intents.default()
+intents.messages = True
+# intents.message_content = True # <-- REMOVED: This was causing the "unavailable scope" invite error.
+intents.guilds = True
+intents.members = True # KEEP THIS: This intent is required for slash command context and MUST be enabled in the Developer Portal.
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
+
+# --- UTILITY FUNCTIONS ---
+
+last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
+view_message_tracker = {}
+
+def is_admin(user_id: int):
+    """Checks if a user ID is in the global ADMIN_USER_IDS list."""
+    return user_id in ADMIN_USER_IDS
+
+# Helper function for the new 'Owner' sort (FIXED for stability)
+def sort_by_owner_tally(data):
+    if not data:
+        return []
+    name_counts = Counter(row[1].lower() for row in data)
+    def custom_sort_key(row):
+        name = row[1].lower()
+        # Safely convert cost to int, defaulting to 0
+        try:
+            cost = int(row[2])
+        except (IndexError, ValueError):
+            cost = 0
+        return (-name_counts[name], name, -cost)
+    return sorted(data, key=custom_sort_key)
+
+
 SORT_CONFIGS = {
     "sort_config_item": {
         "label": "by Item", "button_label": "Sort: Item",
@@ -260,6 +88,24 @@ SORT_CONFIGS = {
     "sort_config_name": {
         "label": "by Name", "button_label": "Sort: Name",
         "sort_lambda": lambda data: sorted(data, key=lambda x: (x[1].lower(), x[0].lower())),
+        "column_order_indices": [1, 0, 2], "headers": ["Name", "Item", "Cost"]
+    },
+    "sort_config_cost": {
+        "label": "by Cost", "button_label": "Sort: Cost",
+        "sort_lambda": lambda data: sorted(data, key=lambda x: (int(x[2]) if str(x[2]).isdigit() else 0, x[0].lower())),
+        "column_order_indices": [2, 0, 1], "headers": ["Cost", "Item", "Name"]
+    },
+    "sort_config_recent": {
+        "label": "by Recent (Last 7 Days)", "button_label": "Sort: Recent",
+        "sort_lambda": lambda data: [
+            row for row in data
+            if len(row) > 3 and row[3] >= (time.time() - SECONDS_IN_WEEK)
+        ][::-1],
+        "column_order_indices": [0, 1, 2], "headers": ["Item", "Name", "Cost (7 Days)"]
+    },
+    "sort_config_owner": {
+        "label": "by Owner Count", "button_label": "Sort: Owner",
+        "sort_lambda": sort_by_owner_tally,
         "column_order_indices": [1, 0, 2], "headers": ["Name", "Item", "Cost"]
     }
 }
@@ -281,116 +127,65 @@ UPDATE_NOTIFICATION_CONFIG = [
         "role_id_to_ping": 1271018797238583337
     },
 ]
-# --- END CONFIGURATION ---
 
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-intents.guilds = True
-client = discord.Client(intents=intents)
-
-last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
-view_message_tracker = {}
-
-# Functions for data persistence
-# ----------------------------------------------------
-# 1. Synchronous (Blocking) Helpers
-# ----------------------------------------------------
-def _load_data_list_sync():
-    """Synchronous function to load data from file, which can block the event loop."""
+# --- DATA PERSISTENCE FUNCTIONS ---
+def load_data_list():
+    """Loads item list data AND channel state data from the JSON file."""
     global data_list
-    temp_data_list = []
+    global channel_list_states
 
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
                 loaded_data = json.load(f)
-                if isinstance(loaded_data, list):
-                    temp_data_list = loaded_data
-                    print(f"Successfully loaded {len(temp_data_list)} items from {DATA_FILE} (Sync).")
+
+                if isinstance(loaded_data, dict) and "list_data" in loaded_data and isinstance(loaded_data["list_data"], list):
+                    data_list = loaded_data["list_data"]
+                elif isinstance(loaded_data, list):
+                    data_list = loaded_data
                 else:
-                    print(f"ERROR: {DATA_FILE} is corrupted or invalid. Initializing with hardcoded data (Sync).")
-                    temp_data_list = list(INITIAL_DATA_LIST)
+                    data_list = list(INITIAL_DATA_LIST)
+
+                if isinstance(loaded_data, dict) and "state_data" in loaded_data and isinstance(loaded_data["state_data"], dict):
+                    raw_states = loaded_data["state_data"].get("channel_list_states", {})
+                    channel_list_states = {int(k): v for k, v in raw_states.items() if str(k).isdigit()}
+                else:
+                    channel_list_states = {}
+
         except (IOError, json.JSONDecodeError) as e:
-            print(f"ERROR loading data from {DATA_FILE}: {e}. Initializing with hardcoded data (Sync).")
-            temp_data_list = list(INITIAL_DATA_LIST)
+            data_list = list(INITIAL_DATA_LIST)
+            channel_list_states = {}
     else:
-        print(f"Data file {DATA_FILE} not found. Initializing with hardcoded data (Sync).")
-        temp_data_list = list(INITIAL_DATA_LIST)
+        data_list = list(INITIAL_DATA_LIST)
+        channel_list_states = {}
 
-    # Ensure all rows have the 4-element structure
-    cleaned_data_list = []
-    for row in temp_data_list:
+    for row in data_list:
         if len(row) > 2:
-            row[2] = str(row[2]) # Ensure cost is a string
-        # Pad old data (length < 4) with defaults
-        while len(row) < 4:
-            row.append(0) 
-        cleaned_data_list.append(row)
+            row[2] = str(row[2])
+        if len(row) < 4:
+            row.append(0)
 
-    data_list = cleaned_data_list 
-    return len(data_list)
-
-def _save_data_list_sync():
-    """Synchronous function to save data to file, which can block the event loop."""
+def save_data_list():
+    """Saves item list data AND channel state data to the JSON file."""
     global data_list
+    global channel_list_states
+
+    data_to_save = {
+        "list_data": data_list,
+        "state_data": {
+            "channel_list_states": channel_list_states
+        }
+    }
+
     try:
         temp_data_file = DATA_FILE + ".tmp"
         with open(temp_data_file, "w") as f:
-            json.dump(data_list, f, indent=4)
+            json.dump(data_to_save, f, indent=4)
         os.replace(temp_data_file, DATA_FILE)
-        print(f"Successfully saved {len(data_list)} items to {DATA_FILE} (Sync).")
     except (IOError, TypeError) as e:
-        print(f"ERROR: Failed to save data to {DATA_FILE} (Sync): {e}")
+        print(f"ERROR: Failed to save data to {DATA_FILE}: {e}")
 
-def _load_uptime_template_sync():
-    """Synchronous function to load the HTML template file."""
-    global UPTIME_TEMPLATE_CONTENT
-    if os.path.exists(UPTIME_TEMPLATE_FILE):
-        try:
-            with open(UPTIME_TEMPLATE_FILE, "r") as f:
-                UPTIME_TEMPLATE_CONTENT = f.read()
-            print(f"Successfully loaded HTML template from {UPTIME_TEMPLATE_FILE} (Sync).")
-        except IOError as e:
-            print(f"ERROR: Failed to read HTML template from {UPTIME_TEMPLATE_FILE}: {e}. Falling back to plain text.")
-            UPTIME_TEMPLATE_CONTENT = "<h1>Error loading template.</h1>"
-    else:
-        print(f"HTML template file {UPTIME_TEMPLATE_FILE} not found. Falling back to plain text.")
-        UPTIME_TEMPLATE_CONTENT = "<h1>Error: Uptime template not found.</h1>"
-
-def _load_game_template_sync(): # New: Sync loader for game template
-    """Synchronous function to load the HTML game template file."""
-    global GAME_TEMPLATE_CONTENT
-    if os.path.exists(GAME_TEMPLATE_FILE):
-        try:
-            with open(GAME_TEMPLATE_FILE, "r") as f:
-                GAME_TEMPLATE_CONTENT = f.read()
-            print(f"Successfully loaded HTML template from {GAME_TEMPLATE_FILE} (Sync).")
-        except IOError as e:
-            print(f"ERROR: Failed to read HTML template from {GAME_TEMPLATE_FILE}: {e}. Falling back to plain text.")
-            GAME_TEMPLATE_CONTENT = "<h1>Error loading game template.</h1>"
-    else:
-        print(f"Game template file {GAME_TEMPLATE_FILE} not found. Falling back to plain text.")
-        GAME_TEMPLATE_CONTENT = "<h1>Error: Game template not found.</h1>"
-
-# ----------------------------------------------------
-# 2. Asynchronous (Non-Blocking) Wrappers
-# ----------------------------------------------------
-async def load_data_list():
-    """Asynchronous wrapper to load data in a separate thread."""
-    await asyncio.to_thread(_load_data_list_sync)
-
-async def save_data_list():
-    """Asynchronous wrapper to save data in a separate thread."""
-    await asyncio.to_thread(_save_data_list_sync)
-
-async def load_uptime_template():
-    """Asynchronous wrapper to load the HTML template in a separate thread."""
-    await asyncio.to_thread(_load_uptime_template_sync)
-
-async def load_game_template(): # New: Async loader for game template
-    """Asynchronous wrapper to load the HTML game template in a separate thread."""
-    await asyncio.to_thread(_load_game_template_sync)
+# --- VIEW CLASSES ---
 
 class EphemeralListView(View):
     def __init__(self, initial_sort_key: str, timeout=300):
@@ -416,9 +211,8 @@ class EphemeralListView(View):
             content_to_send = full_content_parts[0] if isinstance(full_content_parts, list) else full_content_parts
             await interaction.response.edit_message(content=content_to_send, view=self)
         except discord.HTTPException as e:
-            print(f"Failed to edit ephemeral message for {interaction.user.name}: {e}")
+            pass
 
-    # --- Only Item and Name Buttons are included ---
     @button(label=SORT_CONFIGS["sort_config_item"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_item")
     async def sort_item_btn_e(self, i: discord.Interaction, b: Button):
         await self._update_ephemeral_message(i, "sort_config_item")
@@ -426,10 +220,21 @@ class EphemeralListView(View):
     @button(label=SORT_CONFIGS["sort_config_name"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_name")
     async def sort_name_btn_e(self, i: discord.Interaction, b: Button):
         await self._update_ephemeral_message(i, "sort_config_name")
-    # ----------------------------------------------
+
+    @button(label=SORT_CONFIGS["sort_config_cost"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_cost")
+    async def sort_cost_btn_e(self, i: discord.Interaction, b: Button):
+        await self._update_ephemeral_message(i, "sort_config_cost")
+
+    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_recent")
+    async def sort_recent_btn_e(self, i: discord.Interaction, b: Button):
+        await self._update_ephemeral_message(i, "sort_config_recent")
+
+    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.secondary, custom_id="ephem_btn_sort_config_owner")
+    async def sort_owner_btn_e(self, i: discord.Interaction, b: Button):
+        await self._update_ephemeral_message(i, "sort_config_owner")
 
     async def on_timeout(self):
-        print(f"EphemeralListView for sort {self.current_sort_key} timed out.")
+        pass
 
 
 class PersistentListPromptView(View):
@@ -438,24 +243,19 @@ class PersistentListPromptView(View):
         self.target_channel_id = target_channel_id
 
     async def _send_ephemeral_sorted_list(self, interaction: discord.Interaction, sort_key: str):
-        print(f"User {interaction.user.name} (ID: {interaction.user.id}) requested sorted list ('{sort_key}') ephemerally in channel <#{interaction.channel_id}>.")
         if EPHEMERAL_REQUEST_LOG_CHANNEL_ID and EPHEMERAL_REQUEST_LOG_CHANNEL_ID != 0:
             log_channel = client.get_channel(EPHEMERAL_REQUEST_LOG_CHANNEL_ID)
             if log_channel:
                 try:
                     log_message = (
                         f"📋 Ephemeral list generated:\n"
-                        f"▫️ **User:** {interaction.user.mention} (`{interaction.user.name}#{interaction.user.discriminator}` - ID: `{interaction.user.id}`)\n"
-                        f"▫️ **Requested Sort:** `{SORT_CONFIGS[sort_key]['label']}` (Key: `{sort_key}`)\n"
-                        f"▫️ **Interaction Channel:** <#{interaction.channel_id}> (Prompt in channel ID: `{self.target_channel_id}`)"
+                        f"▫️ **User:** {interaction.user.mention} (ID: `{interaction.user.id}`)\n"
+                        f"▫️ **Requested Sort:** `{SORT_CONFIGS[sort_key]['label']}`\n"
+                        f"▫️ **Interaction Channel:** <#{interaction.channel_id}>"
                     )
                     await log_channel.send(log_message)
-                except discord.Forbidden:
-                    print(f"Log Error: No permission to send messages in log channel {EPHEMHERAL_REQUEST_LOG_CHANNEL_ID}.")
-                except Exception as e:
-                    print(f"Log Error: Failed to send log to channel {EPHEMERAL_REQUEST_LOG_CHANNEL_ID}: {e}")
-            else:
-                print(f"Log Error: Ephemeral request log channel ID {EPHEMERAL_REQUEST_LOG_CHANNEL_ID} not found.")
+                except:
+                    pass
 
         full_content_parts = format_sorted_list_content(sort_key, is_ephemeral=True)
         ephemeral_view = EphemeralListView(initial_sort_key=sort_key)
@@ -463,13 +263,11 @@ class PersistentListPromptView(View):
             content_to_send = full_content_parts[0] if isinstance(full_content_parts, list) else full_content_parts
             await interaction.response.send_message(content=content_to_send, view=ephemeral_view, ephemeral=True)
         except Exception as e:
-            print(f"Failed to send ephemeral sorted list to {interaction.user.name}: {e}")
             try:
                 await interaction.followup.send("Sorry, I couldn't generate your list view at this time.", ephemeral=True)
             except:
                 pass
 
-    # --- Only Item and Name Buttons are included ---
     @button(label=SORT_CONFIGS["sort_config_item"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_item")
     async def sort_item_btn_p(self, i: discord.Interaction, b: Button):
         await self._send_ephemeral_sorted_list(i, "sort_config_item")
@@ -477,16 +275,29 @@ class PersistentListPromptView(View):
     @button(label=SORT_CONFIGS["sort_config_name"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_name")
     async def sort_name_btn_p(self, i: discord.Interaction, b: Button):
         await self._send_ephemeral_sorted_list(i, "sort_config_name")
-    # ----------------------------------------------
+
+    @button(label=SORT_CONFIGS["sort_config_cost"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_cost")
+    async def sort_cost_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_cost")
+
+    @button(label=SORT_CONFIGS["sort_config_recent"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_recent")
+    async def sort_recent_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_recent")
+
+    @button(label=SORT_CONFIGS["sort_config_owner"]["button_label"], style=ButtonStyle.primary, custom_id="persist_btn_sort_owner")
+    async def sort_owner_btn_p(self, i: discord.Interaction, b: Button):
+        await self._send_ephemeral_sorted_list(i, "sort_config_owner")
 
     async def on_timeout(self):
-        print(f"PersistentListPromptView for channel {self.target_channel_id} supposedly timed out.")
+        pass
+
+# --- LIST FORMATTING AND UPDATE FUNCTIONS ---
 
 def _update_last_changed_details(item_val, name_val, cost_val):
     global last_updated_item_details
     last_updated_item_details = {"item_val": item_val, "name_val": name_val, "cost_val": cost_val}
 
-async def update_data_for_auto(item_val, name_val):
+def update_data_for_auto(item_val, name_val):
     global data_list
     found_idx = -1
     final_cost = "1"
@@ -505,52 +316,35 @@ async def update_data_for_auto(item_val, name_val):
         except ValueError:
             final_cost = "1"
         existing_row[2] = final_cost
-        # Update timestamp (kept for data structure integrity)
         existing_row[3] = current_time_epoch
         data_list.append(existing_row)
     else:
-        # Add timestamp (kept for data structure integrity)
         new_row = [item_val, name_val, final_cost, current_time_epoch]
         data_list.append(new_row)
 
     _update_last_changed_details(item_val, name_val, final_cost)
-    await save_data_list() 
-    print(f"Data update: Item='{item_val}',Name='{name_val}',NewCost='{final_cost}' (Auto)")
+    save_data_list()
     return final_cost
 
 def format_list_for_display(data, col_indices, headers):
-    if not data:
-        return []
-
-    # Calculate max widths for each column based on headers and data
+    if not data: return []
     widths = [len(h) for h in headers]
     for r in data:
-        # data rows now have 4 elements (Item, Name, Cost, Timestamp)
-        disp_row = [str(r[i]) for r in col_indices]
+        disp_row = [str(r[i]) for i in col_indices]
         for i, val in enumerate(disp_row):
             widths[i] = max(widths[i], len(val))
-
-    # Calculate padding for each column.
     padding = [2] * len(widths)
     total_line_length = sum(widths) + sum(padding) - padding[-1]
-
-    # Dynamically adjust formatting if the line length is too large
     if total_line_length > MAX_MESSAGE_LENGTH - 50:
         padding = [1] * len(widths)
         total_line_length = sum(widths) + sum(padding) - padding[-1]
-
-    # Create the header line
     header_line = " ".join(f"{headers[i]:<{widths[i]}}" for i in range(len(headers)))
-
     message_parts = []
     current_part_lines = [header_line]
     current_length = len(header_line)
-
     for row in data:
         disp_row = [str(row[i]) for i in col_indices]
         line = " ".join(f"{disp_row[i]:<{widths[i]}}" for i in range(len(headers)))
-
-        # Check if adding the new line will exceed the max length
         if current_length + len(line) + 1 + 100 > MAX_MESSAGE_LENGTH:
             message_parts.append("\n".join(current_part_lines))
             current_part_lines = [header_line, line]
@@ -558,53 +352,51 @@ def format_list_for_display(data, col_indices, headers):
         else:
             current_part_lines.append(line)
             current_length += len(line) + 1
-
     if current_part_lines:
         message_parts.append("\n".join(current_part_lines))
-
     return message_parts
 
 def format_sorted_list_content(sort_key: str, is_ephemeral: bool = False):
     sort_details = SORT_CONFIGS[sort_key]
     list_data_source = data_list
     processed_data = []
-
-    # Define a standardized timestamp line for all list updates
     current_epoch = int(time.time())
     timestamp_base = f"<t:{current_epoch}:F> (<t:{current_epoch}:R>)"
 
-    if not list_data_source:
-        timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
-        return [timestamp_line]
-
-    processed_data = sort_details["sort_lambda"](list_data_source)
-
-    if not processed_data:
-        timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
-        return [timestamp_line]
-
-    formatted_text_parts = format_list_for_display(processed_data,
-                                                   sort_details["column_order_indices"],
-                                                   sort_details["headers"])
+    if sort_key == "sort_config_recent":
+        processed_data = sort_details["sort_lambda"](list_data_source)
+        if not processed_data:
+            empty_msg = "No items have been updated in the last 7 days."
+            timestamp_line = f"{empty_msg}\nLast Updated: {timestamp_base} (Sorted {sort_details['label']})"
+            return [timestamp_line]
+        formatted_text_parts = format_list_for_display(processed_data,
+                                                       sort_details["column_order_indices"],
+                                                       sort_details["headers"])
+    else:
+        if not list_data_source:
+            timestamp_line = f"The list is currently empty.\nLast Updated: {timestamp_base} (List is Empty)"
+            return [timestamp_line]
+        processed_data = sort_details["sort_lambda"](list_data_source)
+        if not processed_data:
+            timestamp_line = f"The list is empty after applying the sort/filter.\nLast Updated: {timestamp_base} (List is Empty)"
+            return [timestamp_line]
+        formatted_text_parts = format_list_for_display(processed_data,
+                                                       sort_details["column_order_indices"],
+                                                       sort_details["headers"])
 
     final_message_parts = []
     ts_msg_base = f"(Sorted {sort_details['label']})"
-    code_block_overhead = 8  # "```\n" at start, "\n```" at end
+    code_block_overhead = 8
 
     for i, part in enumerate(formatted_text_parts):
         part_header = ""
         if len(formatted_text_parts) > 1:
             part_header = f"Part {i+1}/{len(formatted_text_parts)} - "
 
-        # Inject the clear, standardized timestamp
         timestamp_line = f"Last Updated: {timestamp_base} | {part_header}{ts_msg_base}"
-
-        # Recalculate content length, leaving space for the timestamp and code block
-        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1 
+        content_length_with_meta = len(timestamp_line) + len(part) + code_block_overhead + 1
         if content_length_with_meta > MAX_MESSAGE_LENGTH:
-            # If a part is still too big, this is the fall-back
             final_message_parts.append(f"List is too large to display. Please contact an admin.")
-            print(f"Warning: A list part exceeded max length. Length: {content_length_with_meta}")
             break
 
         final_message_parts.append(f"{timestamp_line}\n```\n{part}\n```")
@@ -623,13 +415,17 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
 
     channel = client.get_channel(target_channel_id)
     if not channel:
-        state["message_ids"] = []
+        if state["message_ids"]:
+            state["message_ids"] = []
+            save_data_list()
         return
 
     content_parts = format_sorted_list_content(default_sort, is_ephemeral=False)
     view = PersistentListPromptView(target_channel_id=target_channel_id)
 
+    ids_changed = False
     if force_new or len(msg_ids) != len(content_parts):
+        ids_changed = True
         for msg_id in msg_ids:
             try:
                 old_msg = await channel.fetch_message(msg_id)
@@ -638,8 +434,8 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                 pass
             if msg_id in view_message_tracker:
                 del view_message_tracker[msg_id]
-        state["message_ids"] = []
         msg_ids = []
+        state["message_ids"] = []
 
     sent_messages = []
     for i, content in enumerate(content_parts):
@@ -652,27 +448,17 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                 else:
                     await m.edit(content=content, view=None)
                 sent_messages.append(m.id)
-            except discord.NotFound:
+            except (discord.NotFound, Exception):
+                ids_changed = True
                 new_m = None
-                if i == 0:
+                if i == 0 and not sent_messages:
                     new_m = await channel.send(content=content, view=view)
                     view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
                 else:
                     new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
-            except Exception as e:
-                print(f"Error editing/sending part {i} of persistent prompt in {target_channel_id}: {e}")
-                try:
-                    new_m = None
-                    if i == 0:
-                        new_m = await channel.send(content=content, view=view)
-                        view_message_tracker[new_m.id] = ("PersistentListPromptView", target_channel_id)
-                    else:
-                        new_m = await channel.send(content=content, view=None)
-                    sent_messages.append(new_m.id)
-                except Exception as e2:
-                    print(f"Critical: Failed to send new message for part {i} in {target_channel_id}: {e2}")
         else:
+            ids_changed = True
             try:
                 new_m = None
                 if i == 0 and not msg_ids:
@@ -682,11 +468,12 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
                     new_m = await channel.send(content=content, view=None)
                 sent_messages.append(new_m.id)
             except Exception as e:
-                print(f"Error sending new part {i} of persistent prompt to {target_channel_id}: {e}")
+                pass
 
         await asyncio.sleep(0.5)
 
     for old_msg_id in msg_ids[len(content_parts):]:
+        ids_changed = True
         try:
             old_msg = await channel.fetch_message(old_msg_id)
             await old_msg.delete()
@@ -695,10 +482,17 @@ async def send_or_edit_persistent_list_prompt(target_channel_id: int, force_new:
         if old_msg_id in view_message_tracker:
             del view_message_tracker[old_msg_id]
 
+    if set(state["message_ids"]) != set(sent_messages):
+        ids_changed = True
+
     state["message_ids"] = sent_messages
+
+    if ids_changed:
+        save_data_list()
 
 
 async def update_all_persistent_list_prompts(force_new: bool = False):
+    """Iterates through all configured channels and calls the update/edit function."""
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
         if cid and isinstance(cid, int):
             await send_or_edit_persistent_list_prompt(cid, force_new)
@@ -706,12 +500,12 @@ async def update_all_persistent_list_prompts(force_new: bool = False):
 
 
 async def clear_all_persistent_list_prompts():
+    """Deletes all messages and clears the state in memory AND file."""
     for cid in list(channel_list_states.keys()):
         state = channel_list_states[cid]
         msg_ids = state.get("message_ids", [])
         for msg_id in msg_ids:
-            if not msg_id:
-                continue
+            if not msg_id: continue
             channel = client.get_channel(cid)
             if not channel:
                 state["message_ids"] = []
@@ -725,39 +519,83 @@ async def clear_all_persistent_list_prompts():
                 del view_message_tracker[msg_id]
             await asyncio.sleep(0.5)
         state["message_ids"] = []
+    save_data_list()
 
 
-async def handle_restart_command(m: discord.Message):
-    try:
-        await m.add_reaction("🔄")
-        await clear_all_persistent_list_prompts()
-    except:
-        pass
-    await update_all_persistent_list_prompts(force_new=True)
-    try:
-        await m.add_reaction("✅")
-    except:
-        pass
+async def send_custom_update_notifications(item_val, name_val, cost_val):
+    """Sends a notification to all configured channels."""
+    for cfg in UPDATE_NOTIFICATION_CONFIG:
+        cid, fmt, rid = cfg.get("channel_id"), cfg.get("message_format"), cfg.get("role_id_to_ping")
+        if not cid or not fmt or cid == 0: continue
+        chan = client.get_channel(cid)
+        if not chan: continue
 
+        p_str = ""
+        if rid and rid != 0 and chan.guild:
+            role = chan.guild.get_role(rid)
+            p_str = role.mention if role else ""
+        try:
+            content = fmt.format(item_val=item_val, name_val=name_val, cost_val=cost_val, role_ping=p_str)
+        except KeyError as e:
+            continue
+        try:
+            mentions = discord.AllowedMentions.none()
+            if rid and rid != 0 and p_str:
+                mentions.roles = [discord.Object(id=rid)]
+            await chan.send(content, allowed_mentions=mentions)
+        except Exception as e:
+            pass
+        await asyncio.sleep(0.5)
 
-async def handle_manual_add_command(m: discord.Message):
-    parts = m.content[len(MANUAL_ADD_COMMAND_PREFIX):].strip()
-    match = re.fullmatch(r"\"([^\"]+)\"\s+\"([^\"]+)\"(?:\s+(\d+))?", parts)
-    if not match:
-        await m.channel.send(f"Format: `{MANUAL_ADD_COMMAND_PREFIX} \"Item\" \"Name\" [Cost]`")
+# --- SLASH COMMANDS ---
+
+list_group = app_commands.Group(name="list", description="Admin commands for managing the unique list and bot state.")
+
+@list_group.command(name="restart", description="Forces a complete delete and re-create of the list messages.")
+async def list_restart(interaction: discord.Interaction):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
         return
 
-    item_in, name_in, cost_s = match.group(1), match.group(2), match.group(3)
+    await interaction.response.defer(thinking=True)
+    try:
+        await update_all_persistent_list_prompts(force_new=True)
+        await interaction.followup.send("🔄 Bot list messages restarted and re-synced successfully. All old messages were deleted.")
+    except Exception as e:
+        await interaction.followup.send(f"❌ Restart failed: {e}")
+
+@list_group.command(name="close", description="Deletes all persistent list messages and clears the stored message IDs.")
+async def list_close(interaction: discord.Interaction):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
+        return
+
+    await interaction.response.defer(thinking=True)
+    try:
+        await clear_all_persistent_list_prompts()
+        await interaction.followup.send("🗑️ All list displays cleared and state saved.")
+    except Exception as e:
+        await interaction.followup.send(f"❌ Close command failed: {e}")
+
+@list_group.command(name="add", description="Manually adds or updates a list item.")
+@app_commands.describe(
+    item="The name of the unique item.",
+    name="The player's name.",
+    cost="The cost count. Defaults to 1 or increments if item exists."
+)
+async def list_add(interaction: discord.Interaction, item: str, name: str, cost: app_commands.Range[int, 1] = None):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
+        return
+
+    await interaction.response.defer(thinking=True)
     global data_list
     found_idx = -1
+    final_cost = str(cost) if cost is not None else "1"
     resp = ""
-    final_cost = "1"
-
-    # Send initial ack response BEFORE the save to prevent Discord timeout on slow I/O
-    await m.add_reaction("✍️") 
 
     for i, r in enumerate(data_list):
-        if r[0].lower() == item_in.lower():
+        if r[0].lower() == item.lower():
             found_idx = i
             break
 
@@ -765,10 +603,8 @@ async def handle_manual_add_command(m: discord.Message):
 
     if found_idx != -1:
         row_to_update = data_list.pop(found_idx)
-        row_to_update[1] = name_in
-        if cost_s:
-            final_cost = cost_s
-        else:
+        row_to_update[1] = name
+        if cost is None:
             try:
                 final_cost = str(int(row_to_update[2]) + 1)
             except:
@@ -776,147 +612,139 @@ async def handle_manual_add_command(m: discord.Message):
         row_to_update[2] = final_cost
         row_to_update[3] = current_time_epoch
         data_list.append(row_to_update)
-        resp = f"Updated Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
+        resp = f"✅ Updated Item **'{item}'**. Name:'{name}', Cost:{final_cost}."
     else:
-        final_cost = cost_s if cost_s else "1"
-        new_row = [item_in, name_in, final_cost, current_time_epoch]
+        new_row = [item, name, final_cost, current_time_epoch]
         data_list.append(new_row)
-        resp = f"Added Item '{item_in}'. Name:'{name_in}',Cost:{final_cost}."
+        resp = f"✅ Added Item **'{item}'**. Name:'{name}', Cost:{final_cost}."
 
-    _update_last_changed_details(item_in, name_in, final_cost)
-    await save_data_list() 
-    await m.channel.send(resp)
+    _update_last_changed_details(item, name, final_cost)
+    save_data_list()
     await update_all_persistent_list_prompts()
-    try:
-        await m.clear_reactions()
-        await m.add_reaction("✅")
-    except:
-        pass
+    await interaction.followup.send(resp)
 
-
-async def handle_delete_command(message: discord.Message):
-    parts_str = message.content[len(DELETE_COMMAND_PREFIX):].strip()
-    if not (parts_str.startswith('"') and parts_str.endswith('"')):
-        await message.channel.send(f"Format: `{DELETE_COMMAND_PREFIX} \"Item Name\"`")
+@list_group.command(name="delete", description="Deletes a unique item from the list by name.")
+@app_commands.describe(item="The name of the unique item to delete.")
+async def list_delete(interaction: discord.Interaction, item: str):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
         return
-    item_to_delete = parts_str[1:-1]
+
+    await interaction.response.defer(thinking=True)
     global data_list
     original_len = len(data_list)
-    
-    await message.add_reaction("✍️")
+    data_list = [r for r in data_list if r[0].lower() != item.lower()]
 
-    # Filter by item name (index 0). Retain existing 4-element structure
-    data_list = [r for r in data_list if r[0].lower() != item_to_delete.lower()]
-    
     if len(data_list) < original_len:
-        await save_data_list() 
-        await update_all_persistent_list_prompts()
-        await message.channel.send(f"Item '{item_to_delete}' deleted.")
         if last_updated_item_details.get("item_val") and \
-           last_updated_item_details["item_val"].lower() == item_to_delete.lower():
+           last_updated_item_details["item_val"].lower() == item.lower():
             _update_last_changed_details(None, None, None)
-        try:
-            await message.clear_reactions()
-            await message.add_reaction("✅")
-        except:
-            pass
+        save_data_list()
+        await update_all_persistent_list_prompts()
+        await interaction.followup.send(f"✅ Item **'{item}'** deleted.")
     else:
-        try:
-            await message.clear_reactions()
-            await message.add_reaction("❌")
-        except:
-            pass
-        await message.channel.send(f"Item '{item_to_delete}' not found.")
+        await interaction.followup.send(f"❓ Item **'{item}'** not found.")
 
+@list_group.command(name="announce", description="Re-sends the last recorded item update notification to configured channels.")
+async def list_announce(interaction: discord.Interaction):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
+        return
 
-async def handle_announce_command(message: discord.Message):
+    await interaction.response.defer(thinking=True)
     item, name, cost = last_updated_item_details.get("item_val"), last_updated_item_details.get("name_val"), last_updated_item_details.get("cost_val")
     if item and name and cost is not None:
         await send_custom_update_notifications(item, name, cost)
-        await message.channel.send(f"Announcement: Item: {item}, Name: {name}, Cost: {cost}.")
-        try:
-            await message.add_reaction("📢")
-        except:
-            pass
+        await interaction.followup.send(f"📢 Re-announced last update: Item: **{item}**, Name: **{name}**, Cost: **{cost}**.")
     else:
-        await message.channel.send("No recent update (with cost) to announce.")
+        await interaction.followup.send("❓ No recent update (with cost) to announce.")
 
-
-async def handle_say_command(message: discord.Message):
-    match = re.match(rf"{re.escape(SAY_COMMAND_PREFIX)}\s*\"([^\"]*)\"$", message.content.strip(), re.IGNORECASE)
-    if not match:
-        await message.channel.send(f"Format: `{SAY_COMMAND_PREFIX} \"Your message here\"`")
+@list_group.command(name="say", description="Sends a message to all configured announcement channels (UPDATE_NOTIFICATION_CONFIG).")
+@app_commands.describe(message="The message to be sent.")
+async def list_say(interaction: discord.Interaction, message: str):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
         return
 
-    message_to_say = match.group(1).strip()
-
-    if not message_to_say:
-        await message.channel.send("Please provide a message to say.")
-        return
-
-    print(f"Admin {message.author.name} (ID: {message.author.id}) requested to say: '{message_to_say}'")
-
+    await interaction.response.defer(thinking=True)
     sent_to_channels = []
+
     for cfg in UPDATE_NOTIFICATION_CONFIG:
         cid = cfg.get("channel_id")
-        if not cid or cid == 0:
-            continue
+        if not cid or cid == 0: continue
         chan = client.get_channel(cid)
-        if not chan:
-            print(f"Say Command Err: Channel {cid} not found for saying message.")
-            continue
+        if not chan: continue
 
         try:
-            await chan.send(message_to_say)
+            await chan.send(message)
             sent_to_channels.append(chan.name if hasattr(chan, 'name') else str(cid))
-        except Exception as e:
-            print(f"Say Command Err: Failed to send message to channel {cid}: {e}")
+        except:
+            pass
         await asyncio.sleep(0.5)
 
     if sent_to_channels:
-        await message.channel.send(f"Your message was sent to: {', '.join(sent_to_channels)}.")
-        try:
-            await message.add_reaction("✅")
-        except:
-            pass
+        await interaction.followup.send(f"✅ Your message was sent to: {', '.join(sent_to_channels)}.")
     else:
-        await message.channel.send("Could not send your message to any configured channels.")
-        try:
-            await message.add_reaction("❌")
-        except:
-            pass
+        await interaction.followup.send("❌ Could not send your message to any configured channels.")
 
-
-async def handle_close_lists_command(m: discord.Message):
-    try:
-        await m.add_reaction("🗑️")
-        await clear_all_persistent_list_prompts()
-    except:
-        pass
-    try:
-        await m.channel.send("All list displays cleared.")
-        await m.add_reaction("✅")
-    except:
-        pass
-
-
-async def handle_raw_list_command(m: discord.Message):
-    """Handles the 'list.bot raw' command by dumping data_list as JSON and splitting into multiple messages if needed."""
-    global data_list
-
-    if not data_list:
-        await m.channel.send("`data_list` is empty.")
+@list_group.command(name="message", description="Sends a message to a specific channel using Server ID and Channel ID.")
+@app_commands.describe(
+    server_id="The ID of the target server (Guild).",
+    channel_id="The ID of the target text channel.",
+    message="The message content."
+)
+async def list_message(interaction: discord.Interaction, server_id: str, channel_id: str, message: str):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
         return
 
-    await m.add_reaction("💾")
+    await interaction.response.defer(thinking=True)
+    
+    if not (server_id.isdigit() and channel_id.isdigit()):
+        await interaction.followup.send("❌ Server ID and Channel ID must be valid numerical IDs.")
+        return
 
-    # Dump the data_list to a JSON string with an indent for readability
+    try:
+        s_id = int(server_id)
+        c_id = int(channel_id)
+    except ValueError:
+        await interaction.followup.send("❌ Server ID and Channel ID must be valid numerical IDs.")
+        return
+
+    guild = client.get_guild(s_id)
+    if not guild:
+        await interaction.followup.send(f"❌ Server not found or bot is not in server with ID: `{server_id}`")
+        return
+
+    channel = guild.get_channel(c_id)
+    if not channel or not isinstance(channel, discord.TextChannel):
+        await interaction.followup.send(f"❌ Channel not found, or it's not a text channel in server `{guild.name}` with ID: `{channel_id}`")
+        return
+
+    if not channel.permissions_for(guild.me).send_messages:
+        await interaction.followup.send(f"❌ I do not have permissions to send messages in channel `{channel.name}` on server `{guild.name}`.")
+        return
+
+    try:
+        await channel.send(message)
+        await interaction.followup.send(f"✅ Message successfully sent to <#{channel.id}> on server **{guild.name}**.")
+    except Exception as e:
+        await interaction.followup.send(f"❌ Failed to send message: An unexpected error occurred. Details: `{e}`")
+
+@list_group.command(name="raw", description="Outputs the complete list data in JSON format for debugging.")
+async def list_raw(interaction: discord.Interaction):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True)
+        return
+
+    await interaction.response.defer(thinking=True)
+    global data_list
+    if not data_list:
+        await interaction.followup.send("`data_list` is empty.")
+        return
+
     raw_json = json.dumps(data_list, indent=2)
-
-    # Target maximum content size inside the code block is 1850 (1900 - 50 for overhead).
     MAX_CONTENT_CHUNK_SIZE = MAX_MESSAGE_LENGTH - 150
-
-    # Split the raw_json string into chunks
     chunks = []
     i = 0
     while i < len(raw_json):
@@ -925,219 +753,83 @@ async def handle_raw_list_command(m: discord.Message):
         i += MAX_CONTENT_CHUNK_SIZE
 
     total_parts = len(chunks)
-
     for i, chunk in enumerate(chunks):
         part_number = i + 1
-
-        # Add a descriptive header for multi-part messages
-        if total_parts > 1:
-            header_text = f"Raw List Data (Part {part_number}/{total_parts})"
-        else:
-            header_text = "Raw List Data"
-
-        # Construct the final message with code block.
+        header_text = f"Raw List Data (Part {part_number}/{total_parts})" if total_parts > 1 else "Raw List Data"
         msg_content = f"{header_text}\n```json\n{chunk}\n```"
-
-        await m.channel.send(msg_content)
-        # Add a slight delay between messages to avoid rate-limiting
+        if i == 0:
+            await interaction.followup.send(msg_content)
+        else:
+            await interaction.channel.send(msg_content)
         await asyncio.sleep(0.5)
 
-    try:
-        await m.clear_reactions()
-        await m.add_reaction("✅")
-    except:
-        pass
-
-
-async def send_custom_update_notifications(item_val, name_val, cost_val):
-    print(f"Notifications for: Item '{item_val}', Name '{name_val}', Cost '{cost_val}'")
-    for cfg in UPDATE_NOTIFICATION_CONFIG:
-        cid, fmt, rid = cfg.get("channel_id"), cfg.get("message_format"), cfg.get("role_id_to_ping")
-        if not cid or not fmt or cid == 0:
-            continue
-        chan = client.get_channel(cid)
-        if not chan:
-            print(f"Notify Err: Chan {cid} not found.")
-            continue
-        p_str = ""
-        if rid and rid != 0 and chan.guild:
-            role = chan.guild.get_role(rid)
-            p_str = role.mention if role else ""
-        try:
-            content = fmt.format(item_val=item_val, name_val=name_val, cost_val=cost_val, role_ping=p_str)
-        except KeyError as e:
-            print(f"Notify Err: Placeholder {e} invalid. Use {{item_val}}, {{name_val}}, {{cost_val}}.")
-            continue
-        try:
-            mentions = discord.AllowedMentions.none()
-            if rid and rid != 0 and p_str:
-                mentions.roles = [discord.Object(id=rid)]
-            await chan.send(content, allowed_mentions=mentions)
-        except Exception as e:
-            print(f"Notify Err: Failed to send to {cid}: {e}")
-        await asyncio.sleep(0.5)
-
+# --- BOT EVENTS ---
 
 last_on_ready_timestamp = 0
-
 
 @client.event
 async def on_ready():
     global last_on_ready_timestamp
-
     current_time = time.time()
     if current_time - last_on_ready_timestamp < 60:
-        print("Bot restarted too quickly. Skipping a full list update to prevent API rate limit issues.")
         return
 
     last_on_ready_timestamp = current_time
 
     print(f'{client.user.name} ({client.user.id}) connected!')
-    
-    # --- New: Load HTML Templates ---
-    print("Loading uptime HTML template...")
-    await load_uptime_template()
-    print("Loading game HTML template...")
-    await load_game_template()
-    # -----------------------------
 
-    print("Loading data from file...")
-    await load_data_list() 
-    print(f'Auto-updates from: {TARGET_BOT_ID_FOR_AUTO_UPDATES}')
-    print(f'Admins: {ADMIN_USER_IDS}')
-    print(f'Cmds: Announce:"{ANNOUNCE_COMMAND}", Delete:"{DELETE_COMMAND_PREFIX}", Restart:"{RESTART_COMMAND}", Add:"{MANUAL_ADD_COMMAND_PREFIX}", Say:"{SAY_COMMAND_PREFIX}", Raw:"{RAW_LIST_COMMAND}", Close:"{CLOSE_LISTS_COMMAND}"')
+    tree.add_command(list_group)
 
-    print("Initializing channel states for persistent views...")
+    print("Syncing slash commands...")
+    try:
+        await tree.sync()
+        print(f"Successfully synced {len(tree.get_commands())} slash commands.")
+    except Exception as e:
+        print(f"Failed to sync slash commands: {e}")
+
+    print("Loading data and persistent message IDs from file...")
+    load_data_list()
+
+    print("Initializing channel states and updating persistent list prompts.")
     for cid in INTERACTIVE_LIST_TARGET_CHANNEL_IDS:
         if cid == 0 or not isinstance(cid, int):
             continue
         if cid not in channel_list_states:
             channel_list_states[cid] = {"message_ids": [], "default_sort_key_for_display": DEFAULT_PERSISTENT_SORT_KEY}
-        state = channel_list_states[cid]
-        msg_ids = state.get("message_ids", [])
-        if msg_ids:
-            print(f"INFO: Channel {cid} has stored message IDs {msg_ids}. It will be handled by update_all_persistent_list_prompts.")
 
-    print("Ensuring persistent list prompts are up-to-date or posted.")
     await update_all_persistent_list_prompts(force_new=False)
 
 
 @client.event
 async def on_message(m: discord.Message):
-    if m.author == client.user or (m.author.bot and m.author.id != TARGET_BOT_ID_FOR_AUTO_UPDATES):
+    """
+    Handles only the auto-update logic.
+    Note: Since the message is from another bot (TARGET_BOT_ID_FOR_AUTO_UPDATES),
+    the message content is accessible without the privileged message_content intent.
+    """
+    if m.author == client.user:
         return
 
-    is_admin = m.author.id in ADMIN_USER_IDS
-    content_lower_stripped = m.content.strip().lower()
-
-    if is_admin:
-        if content_lower_stripped == RESTART_COMMAND.lower():
-            await handle_restart_command(m)
-            return
-        if content_lower_stripped == CLOSE_LISTS_COMMAND.lower():
-            await handle_close_lists_command(m)
-            return
-        if content_lower_stripped == ANNOUNCE_COMMAND.lower():
-            await handle_announce_command(m)
-            return
-        if content_lower_stripped.startswith(MANUAL_ADD_COMMAND_PREFIX.lower()):
-            await handle_manual_add_command(m)
-            return
-        if content_lower_stripped.startswith(DELETE_COMMAND_PREFIX.lower()):
-            await handle_delete_command(m)
-            return
-        if content_lower_stripped.startswith(SAY_COMMAND_PREFIX.lower()):
-            await handle_say_command(m)
-            return
-        if content_lower_stripped == RAW_LIST_COMMAND.lower():
-            await handle_raw_list_command(m)
-            return
-
+    # Check for the target bot's automated message
     if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
         if match:
             item_val, name_val = match.group(1).strip(), match.group(2).strip()
-            print(f"AutoUpd from {m.author.id}: Item='{item_val}',Name='{name_val}'")
-            updated_cost = await update_data_for_auto(item_val, name_val)
+            updated_cost = update_data_for_auto(item_val, name_val)
             await update_all_persistent_list_prompts(force_new=False)
             await send_custom_update_notifications(item_val, name_val, updated_cost)
             return
 
-
-# --- Uptime Handler Function ---
-async def handle_uptime(request):
-    """Handler for the /uptime route, using the pre-loaded HTML template."""
-    global UPTIME_TEMPLATE_CONTENT
-
-    if not UPTIME_TEMPLATE_CONTENT:
-        print("Template content empty, attempting reload.")
-        await load_uptime_template()
-        if not UPTIME_TEMPLATE_CONTENT:
-            return aiohttp.web.Response(text="Error: HTML template is missing.", content_type='text/plain', status=500)
-
-    # 1. Calculate Uptime
-    uptime_seconds = time.time() - BOT_START_TIME
-    uptime_days = int(uptime_seconds // (24 * 3600))
-    uptime_hours = int((uptime_seconds % (24 * 3600)) // 3600)
-    uptime_minutes = int((uptime_seconds % 3600) // 60)
-    
-    # 2. Format the Template
-    try:
-        html_content = UPTIME_TEMPLATE_CONTENT.format(
-            days=f"{uptime_days:02d}",
-            hours=f"{uptime_hours:02d}",
-            minutes=f"{uptime_minutes:02d}",
-            timestamp_check=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-        )
-    except KeyError as e:
-        error_msg = (
-            f"Error rendering template: Missing placeholder {e}. "
-            f"Likely cause: Unescaped curly braces in the HTML (especially in CSS/JS). "
-            f"Fix: In your 'uptime_template.html', replace all literal {{ and }} with {{ and }}."
-        )
-        print(error_msg)
-        html_content = f"<h1>{error_msg}</h1>"
-        return aiohttp.web.Response(text=html_content, content_type='text/html', status=500)
-
-    # 3. Return the HTML response
-    return aiohttp.web.Response(text=html_content, content_type='text/html')
-# -----------------------------------
-
-# --- New Game Handler Function ---
-async def handle_game(request):
-    """Handler for the /game route, serving the game HTML template."""
-    global GAME_TEMPLATE_CONTENT
-
-    if not GAME_TEMPLATE_CONTENT:
-        print("Game Template content empty, attempting reload.")
-        await load_game_template()
-        if not GAME_TEMPLATE_CONTENT or "Error loading game template" in GAME_TEMPLATE_CONTENT:
-            return aiohttp.web.Response(text="Error: HTML game template is missing.", content_type='text/plain', status=500)
-
-    # The game template is static and doesn't require formatting.
-    return aiohttp.web.Response(text=GAME_TEMPLATE_CONTENT, content_type='text/html')
-# -----------------------------------
-
+# --- WEB SERVER AND MAIN EXECUTION ---
 
 async def web_server():
     app = aiohttp.web.Application()
-    # Existing route for the root (/)
     app.router.add_get("/", lambda r: aiohttp.web.Response(text="Bot is running!"))
-
-    # --- UPTIME ROUTE ---
-    app.router.add_get("/uptime", handle_uptime)
-    
-    # --- NEW GAME ROUTE ---
-    app.router.add_get("/game", handle_game)
-    # ----------------------
-
     runner = aiohttp.web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 8080))
     site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
-    print(f"Web server started on port {port}")
-
 
 async def main():
     if not BOT_TOKEN:
@@ -1145,11 +837,11 @@ async def main():
         return
 
     web_task = asyncio.create_task(web_server())
-    bot_task = asyncio.create_task(client.start(BOT_TOKEN))
-
-    await asyncio.gather(web_task, bot_task)
-
-
+    try:
+        await client.start(BOT_TOKEN)
+    finally:
+        web_task.cancel()
+        
 if __name__ == "__main__":
     try:
         asyncio.run(main())
