@@ -848,6 +848,65 @@ async def list_importjson(interaction: discord.Interaction, json_data: str):
     except Exception as e:
         await interaction.followup.send(f"Unexpected error: {e}")
 
+@list_group.command(
+    name="announce_specific",
+    description="Announces a specific item update to the configured channels."
+)
+@app_commands.describe(
+    item="The name of the unique item.",
+    name="The player's name.",
+    cost="The cost count of the item."
+)
+async def list_announce_specific(
+    interaction: discord.Interaction, 
+    item: str, 
+    name: str, 
+    cost: int
+):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message(
+            "❌ Access Denied. You must be a bot admin to use this command.", 
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(thinking=True)
+
+    # Loop over de UPDATE_NOTIFICATION_CONFIG om in elk kanaal te posten
+    for cfg in UPDATE_NOTIFICATION_CONFIG:
+        cid, fmt, rid = cfg.get("channel_id"), cfg.get("message_format"), cfg.get("role_id_to_ping")
+        if not cid or not fmt or cid == 0:
+            continue
+        chan = client.get_channel(cid)
+        if not chan:
+            continue
+
+        # role mention string
+        role_mention = ""
+        if rid and rid != 0 and chan.guild:
+            role = chan.guild.get_role(rid)
+            role_mention = role.mention if role else ""
+
+        # format message exactly like: Item - Name - Cost\n@Role
+        try:
+            content = f"{item} - {name} - {cost}\n{role_mention}"
+        except Exception:
+            content = f"{item} - {name} - {cost}"
+
+        try:
+            mentions = discord.AllowedMentions.none()
+            if role_mention:
+                mentions.roles = [discord.Object(id=rid)]
+            await chan.send(content, allowed_mentions=mentions)
+        except Exception:
+            pass
+        await asyncio.sleep(0.5)
+
+    await interaction.followup.send(
+        f"📢 Specific announcement sent: **{item} - {name} - {cost}**"
+    )
+
+
 # --- BOT EVENTS ---
 
 last_on_ready_timestamp = 0
