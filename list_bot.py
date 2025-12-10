@@ -10,6 +10,7 @@ from discord.ui import View, Button, button
 from discord.enums import ButtonStyle
 from collections import Counter
 import aiohttp.web
+from collections import defaultdict
 
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -791,12 +792,58 @@ async def list_importjson(interaction: discord.Interaction, json_data: str):
             # Ensure timestamp for recent sorting
             if len(row) < 4:
                 row.append(int(time.time()))
+        
+        # Maak overzicht van veranderingen
+        def count_uniques(data):
+            from collections import defaultdict
+            counter = defaultdict(int)
+            for item in data:
+                counter[item[1]] += 1
+            return counter
+
+        def generate_overview(old_data, new_data):
+            old_owner_map = {item[0]: item[1] for item in old_data}
+            new_owner_map = {item[0]: item[1] for item in new_data}
+
+            changes = []
+            for item, old_owner in old_owner_map.items():
+                new_owner = new_owner_map.get(item)
+                if new_owner and old_owner != new_owner:
+                    changes.append(f"{item}\t{old_owner} -> {new_owner}")
+
+            old_counts = count_uniques(old_data)
+            new_counts = count_uniques(new_data)
+
+            uniques_changes = []
+            all_users = set(old_counts.keys()).union(new_counts.keys())
+            for user in all_users:
+                old_count = old_counts.get(user, 0)
+                new_count = new_counts.get(user, 0)
+                if old_count != new_count:
+                    uniques_changes.append(f"{user}\t{old_count} uniques -> {new_count} uniques")
+
+            overview = ""
+            if changes:
+                overview += "**Owner changes:**\n" + "\n".join(changes) + "\n\n"
+            if uniques_changes:
+                overview += "**Unique counts changes:**\n" + "\n".join(uniques_changes)
+
+            return overview.strip() if overview else "No changes detected."
+
+        old_data = data_list.copy()  # bewaar oude lijst voor vergelijking
         data_list = loaded
         save_data_list()
         await update_all_persistent_list_prompts(force_new=True)
-        await interaction.followup.send(f"JSON successfully imported. Total items: {len(data_list)}")
+
+        # Genereer overzicht
+        overview = generate_overview(old_data, data_list)
+
+        await interaction.followup.send(
+            f"JSON successfully imported. Total items: {len(data_list)}\n\n{overview}"
+        )
+
     except json.JSONDecodeError:
-        await interaction.followup.send("Invalaid JSON format. Make sure it's a valid JSON array.")
+        await interaction.followup.send("Invalid JSON format. Make sure it's a valid JSON array.")
     except ValueError as ve:
         await interaction.followup.send(f"JSON validation error: {ve}")
     except Exception as e:
