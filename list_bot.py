@@ -12,7 +12,7 @@ from collections import Counter
 import aiohttp.web
 
 # --- CONFIGURATION ---
-BOT_TOKEN = os.environ.get("BOT_OKEN")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
