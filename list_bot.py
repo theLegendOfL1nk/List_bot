@@ -766,7 +766,7 @@ async def list_raw(interaction: discord.Interaction):
 
 @list_group.command(
     name="importjson",
-    description="Imports a complete JSON array into the list (replaces current data)."
+    description="Imports a complete JSON array into the list (replaces current data) and shows changes."
 )
 @app_commands.describe(json_data="A JSON array of items, e.g., [[\"Item1\",\"Player1\",1],[\"Item2\",\"Player2\",3]]")
 async def list_importjson(interaction: discord.Interaction, json_data: str):
@@ -783,64 +783,63 @@ async def list_importjson(interaction: discord.Interaction, json_data: str):
         loaded = json.loads(json_data)
         if not isinstance(loaded, list):
             raise ValueError("JSON is not a list.")
-        # Optional: validate inner items
+
+        # Validate items and ensure timestamp
         for idx, row in enumerate(loaded):
             if not isinstance(row, list) or len(row) < 3:
                 raise ValueError(f"Row {idx} is invalid. Each row must be a list of at least 3 elements: [Item, Name, Cost].")
-            # Ensure cost is string
             row[2] = str(row[2])
-            # Ensure timestamp for recent sorting
             if len(row) < 4:
                 row.append(int(time.time()))
-        
-        # Maak overzicht van veranderingen
-        def count_uniques(data):
-            from collections import defaultdict
-            counter = defaultdict(int)
-            for item in data:
-                counter[item[1]] += 1
-            return counter
 
-        def generate_overview(old_data, new_data):
-            old_owner_map = {item[0]: item[1] for item in old_data}
-            new_owner_map = {item[0]: item[1] for item in new_data}
+        # Maak overzicht van huidige eigenaars
+        old_owners = {item[0]: item[1] for item in data_list}
+        old_counts = {}
+        for owner in [item[1] for item in data_list]:
+            old_counts[owner] = old_counts.get(owner, 0) + 1
 
-            changes = []
-            for item, old_owner in old_owner_map.items():
-                new_owner = new_owner_map.get(item)
-                if new_owner and old_owner != new_owner:
-                    changes.append(f"{item}\t{old_owner} -> {new_owner}")
-
-            old_counts = count_uniques(old_data)
-            new_counts = count_uniques(new_data)
-
-            uniques_changes = []
-            all_users = set(old_counts.keys()).union(new_counts.keys())
-            for user in all_users:
-                old_count = old_counts.get(user, 0)
-                new_count = new_counts.get(user, 0)
-                if old_count != new_count:
-                    uniques_changes.append(f"{user}\t{old_count} uniques -> {new_count} uniques")
-
-            overview = ""
-            if changes:
-                overview += "**Owner changes:**\n" + "\n".join(changes) + "\n\n"
-            if uniques_changes:
-                overview += "**Unique counts changes:**\n" + "\n".join(uniques_changes)
-
-            return overview.strip() if overview else "No changes detected."
-
-        old_data = data_list.copy()  # bewaar oude lijst voor vergelijking
+        # Update data_list
         data_list = loaded
         save_data_list()
         await update_all_persistent_list_prompts(force_new=True)
 
-        # Genereer overzicht
-        overview = generate_overview(old_data, data_list)
+        # Nieuw overzicht van eigenaars
+        new_owners = {item[0]: item[1] for item in data_list}
+        new_counts = {}
+        for owner in [item[1] for item in data_list]:
+            new_counts[owner] = new_counts.get(owner, 0) + 1
 
-        await interaction.followup.send(
-            f"JSON successfully imported. Total items: {len(data_list)}\n\n{overview}"
-        )
+        # Bepaal wijzigingen
+        changes = []
+        for item_name, new_owner in new_owners.items():
+            old_owner = old_owners.get(item_name)
+            if old_owner != new_owner:
+                changes.append(f"{item_name} → {old_owner} -> {new_owner}")
+
+        # Update counts only for affected users
+        affected_users = set()
+        for item_name, new_owner in new_owners.items():
+            old_owner = old_owners.get(item_name)
+            if old_owner != new_owner:
+                affected_users.add(new_owner)
+                if old_owner:
+                    affected_users.add(old_owner)
+
+        counts_changes = []
+        for user in affected_users:
+            old_count = old_counts.get(user, 0)
+            new_count = new_counts.get(user, 0)
+            if old_count != new_count:
+                counts_changes.append(f"{user} : {old_count} uniques -> {new_count} uniques")
+
+        # Combineer bericht
+        msg = "✅ JSON successfully imported.\n"
+        if changes:
+            msg += "\n**Transferred items:**\n" + "\n".join(changes)
+        if counts_changes:
+            msg += "\n\n**Updated unique counts:**\n" + "\n".join(counts_changes)
+
+        await interaction.followup.send(msg if changes or counts_changes else "JSON imported, no changes detected.")
 
     except json.JSONDecodeError:
         await interaction.followup.send("Invalid JSON format. Make sure it's a valid JSON array.")
