@@ -19,7 +19,7 @@ TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
 ADMIN_USER_IDS = [
     YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
-    934249510127935529, 504748495933145103, 1095468010564767796, 1318608682971566194
+    934249510127935529, 504748495933145103, 1095468010564767796
 ]
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
@@ -762,6 +762,45 @@ async def list_raw(interaction: discord.Interaction):
         else:
             await interaction.channel.send(msg_content)
         await asyncio.sleep(0.5)
+
+@list_group.command(
+    name="importjson",
+    description="Imports a complete JSON array into the list (replaces current data)."
+)
+@app_commands.describe(json_data="A JSON array of items, e.g., [[\"Item1\",\"Player1\",1],[\"Item2\",\"Player2\",3]]")
+async def list_importjson(interaction: discord.Interaction, json_data: str):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message(
+            "❌ Access Denied. You must be a bot admin to use this command.", ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(thinking=True)
+
+    global data_list
+    try:
+        loaded = json.loads(json_data)
+        if not isinstance(loaded, list):
+            raise ValueError("JSON is not a list.")
+        # Optional: validate inner items
+        for idx, row in enumerate(loaded):
+            if not isinstance(row, list) or len(row) < 3:
+                raise ValueError(f"Row {idx} is invalid. Each row must be a list of at least 3 elements: [Item, Name, Cost].")
+            # Ensure cost is string
+            row[2] = str(row[2])
+            # Ensure timestamp for recent sorting
+            if len(row) < 4:
+                row.append(int(time.time()))
+        data_list = loaded
+        save_data_list()
+        await update_all_persistent_list_prompts(force_new=True)
+        await interaction.followup.send(f"JSON successfully imported. Total items: {len(data_list)}")
+    except json.JSONDecodeError:
+        await interaction.followup.send("Invalaid JSON format. Make sure it's a valid JSON array.")
+    except ValueError as ve:
+        await interaction.followup.send(f"JSON validation error: {ve}")
+    except Exception as e:
+        await interaction.followup.send(f"Unexpected error: {e}")
 
 # --- BOT EVENTS ---
 
