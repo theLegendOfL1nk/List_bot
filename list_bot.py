@@ -35,8 +35,8 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.0 beta 1"
-DESCRIPTION = ""
+VERSION = "27.0 beta 2"
+DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features."
 
 # GLOBAL VARIABLES FOR PERSISTENT DATA
 data_list = []
@@ -910,6 +910,24 @@ async def list_announce_specific(
         f"📢 Specific announcement sent: **{item} - {name} - {cost}**"
     )
 
+@list_group.command(
+    name="announce_version",
+    description="Manually triggers a version announcement in the configured VERSION_CHANNEL_ID."
+)
+async def list_announce_version(interaction: discord.Interaction):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message(
+            "❌ Access Denied. You must be a bot admin to use this command.", 
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(thinking=True)
+    try:
+        await check_and_announce_version()
+        await interaction.followup.send("✅ Version announcement check completed.")
+    except Exception as e:
+        await interaction.followup.send(f"❌ Version announcement failed: {e}")
 
 # --- BOT EVENTS ---
 
@@ -947,12 +965,10 @@ async def on_ready():
 
     await update_all_persistent_list_prompts(force_new=False)
 
-    # Check and announce version if needed
     try:
         await check_and_announce_version()
     except Exception as e:
         print(f"Version announcement check failed: {e}")
-
 
 @client.event
 async def on_message(m: discord.Message):
@@ -985,6 +1001,16 @@ async def web_server():
     site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
 
+async def main():
+    if not BOT_TOKEN:
+        print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
+        return
+
+    web_task = asyncio.create_task(web_server())
+    try:
+        await client.start(BOT_TOKEN)
+    finally:
+        web_task.cancel()
 
 async def check_and_announce_version():
     """Checks the VERSION_CHANNEL_ID for a previous version announcement.
@@ -1024,18 +1050,7 @@ async def check_and_announce_version():
                     pass
     except Exception:
         pass
-
-async def main():
-    if not BOT_TOKEN:
-        print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
-        return
-
-    web_task = asyncio.create_task(web_server())
-    try:
-        await client.start(BOT_TOKEN)
-    finally:
-        web_task.cancel()
-        
+       
 if __name__ == "__main__":
     try:
         asyncio.run(main())
