@@ -6,6 +6,10 @@ import re
 import time
 import asyncio
 import json
+import signal
+import atexit
+import traceback
+import sys
 from discord.ui import View, Button, button
 from discord.enums import ButtonStyle
 from collections import Counter
@@ -15,6 +19,7 @@ from collections import defaultdict
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
+STATE_FILE = "bot_state.json"
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1280968897654292490
@@ -35,7 +40,7 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.0 beta 2"
+VERSION = "27.0 beta 3"
 DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features."
 
 # GLOBAL VARIABLES FOR PERSISTENT DATA
@@ -190,6 +195,83 @@ def save_data_list():
     except (IOError, TypeError) as e:
         print(f"ERROR: Failed to save data to {DATA_FILE}: {e}")
 
+# --- BOT STATE (CRASH/RESTART) HANDLING ---
+prev_shutdown_info = {}
+
+def load_bot_state():
+    global prev_shutdown_info
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                prev_shutdown_info = json.load(f)
+        except Exception:
+            prev_shutdown_info = {}
+    else:
+        prev_shutdown_info = {}
+    return prev_shutdown_info
+
+def save_bot_state(state: dict):
+    try:
+        tmp = STATE_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(state, f, indent=2)
+        os.replace(tmp, STATE_FILE)
+    except Exception as e:
+        print(f"ERROR: Failed to save bot state to {STATE_FILE}: {e}")
+
+def mark_clean_shutdown():
+    st = {"last_state": "stopped_clean", "timestamp": int(time.time()), "pid": os.getpid()}
+    save_bot_state(st)
+
+def mark_unclean_shutdown(reason: str = None):
+    st = {"last_state": "stopped_unclean", "timestamp": int(time.time()), "pid": os.getpid(), "reason": reason}
+    save_bot_state(st)
+
+def _signal_handler(sig, frame):
+    try:
+        mark_clean_shutdown()
+    except Exception:
+        pass
+    try:
+        sys.exit(0)
+    except SystemExit:
+        raise
+
+def register_signal_handlers():
+    try:
+        signal.signal(signal.SIGINT, _signal_handler)
+    except Exception:
+        pass
+    try:
+        signal.signal(signal.SIGTERM, _signal_handler)
+    except Exception:
+        pass
+    atexit.register(mark_clean_shutdown)
+
+# Coroutine to send a crash embed; executed from on_ready where client is available
+async def send_bot_crash_embed(prev_info: dict):
+    try:
+        channel = client.get_channel(VERSION_CHANNEL_ID)
+        if not channel:
+            return
+        descr = "Previous run did not shut down cleanly."
+        if prev_info and prev_info.get("reason"):
+            descr += f"\nReason: {prev_info.get('reason')}"
+        embed = discord.Embed(title="Bot Crashed", description=descr, color=0xFF4444)
+        embed.add_field(name="Version", value=VERSION)
+        if prev_info and prev_info.get("timestamp"):
+            try:
+                ts = int(prev_info.get("timestamp"))
+                embed.add_field(name="Previous Timestamp", value=f"<t:{ts}:F>")
+            except Exception:
+                pass
+        embed.timestamp = discord.utils.utcnow()
+        await channel.send(embed=embed)
+    except Exception:
+        pass
+
+# --- END BOT STATE HANDLING ---
+
 # --- VIEW CLASSES ---
 
 class EphemeralListView(View):
@@ -295,6 +377,21 @@ class PersistentListPromptView(View):
 
     async def on_timeout(self):
         pass
+
+@client.command(name="server_close")
+@commands.has_any_role("Moderator", "Developer - CEO", "Owner", "Admin", "Bot manager")
+async def server_close(ctx: commands.Context):
+    channel = discord.utils.get(ctx.guild.text_channels, name="versions")
+    if channel:
+        embed = discord.Embed(
+            title="Server Closing Soon",
+            description="The server will close in 10 seconds. /ban @everyone funny",
+            color=0xFF4444
+        )
+        await channel.send(embed=embed)
+        await ctx.send("Close message sent to #versions")
+    else:
+        await ctx.send("No #versions channel found.")
 
 # --- LIST FORMATTING AND UPDATE FUNCTIONS ---
 
@@ -925,9 +1022,9 @@ async def list_announce_version(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     try:
         await check_and_announce_version()
-        await interaction.followup.send("✅ Version announcement check completed.")
+        await interaction.followup.send("Version announcement check completed.")
     except Exception as e:
-        await interaction.followup.send(f"❌ Version announcement failed: {e}")
+        await interaction.followup.send(f"Version announcement failed: {e}")
 
 # --- BOT EVENTS ---
 
@@ -970,6 +1067,19 @@ async def on_ready():
     except Exception as e:
         print(f"Version announcement check failed: {e}")
 
+    # If previous shutdown state wasn't clean, notify in the version channel
+    try:
+        if prev_shutdown_info and prev_shutdown_info.get("last_state") != "stopped_clean":
+            await send_bot_crash_embed(prev_shutdown_info)
+    except Exception:
+        pass
+
+    # Mark current run as active/running
+    try:
+        save_bot_state({"last_state": "running", "timestamp": int(time.time()), "pid": os.getpid()})
+    except Exception:
+        pass
+
 @client.event
 async def on_message(m: discord.Message):
     """
@@ -1006,6 +1116,16 @@ async def main():
         print("ERROR: BOT_TOKEN environment variable not set. Please configure it on Render.")
         return
 
+    # Load previous state and register shutdown handlers
+    try:
+        load_bot_state()
+    except Exception:
+        pass
+    try:
+        register_signal_handlers()
+    except Exception:
+        pass
+
     web_task = asyncio.create_task(web_server())
     try:
         await client.start(BOT_TOKEN)
@@ -1013,48 +1133,36 @@ async def main():
         web_task.cancel()
 
 async def check_and_announce_version():
-    """Checks the VERSION_CHANNEL_ID for a previous version announcement.
-    If no previous announcement exists or the version differs from VERSION,
-    sends an @everyone mention with an embed announcing the new version.
-    """
+    channel = client.get_channel(VERSION_CHANNEL_ID)
+    if not channel:
+        return
+
     try:
-        channel = client.get_channel(VERSION_CHANNEL_ID)
-        if not channel:
-            return
+        desc = DESCRIPTION if DESCRIPTION else "No description provided."
+        embed = discord.Embed(title=f"Version: {VERSION}", description=desc, color=686868)
+        embed.timestamp = discord.utils.utcnow()
+        embed.set_footer(text="The florrOS Project.")
+        mentions = discord.AllowedMentions.none()
+        role_mention = ""
+        if channel.guild:
+            role = discord.utils.get(channel.guild.roles, name="Version Notify")
+            if role:
+                role_mention = role.mention
+                mentions.roles = [discord.Object(id=role.id)]
+        await channel.send(f"{role_mention} A new bot version is available: {VERSION}", embed=embed, allowed_mentions=mentions)
+    except Exception as e:
+        print(f"Version announcement failed: {e}")
 
-        last_version_found = None
-        try:
-            async for msg in channel.history(limit=50):
-                if msg.author == client.user and msg.embeds:
-                    for emb in msg.embeds:
-                        if emb and emb.title and emb.title.lower().startswith("version"):
-                            parts = emb.title.split(":", 1)
-                            last_version_found = parts[1].strip() if len(parts) > 1 else emb.title.strip()
-                            break
-                if last_version_found:
-                    break
-        except Exception:
-            last_version_found = None
-
-        if last_version_found != VERSION:
-            desc = DESCRIPTION if DESCRIPTION else "No description provided."
-            embed = discord.Embed(title=f"Version: {VERSION}", description=desc, color=0x2F3136)
-            embed.timestamp = discord.utils.utcnow()
-            try:
-                mentions = discord.AllowedMentions(everyone=True)
-                await channel.send(f"@everyone A new bot version is available: {VERSION}", embed=embed, allowed_mentions=mentions)
-            except Exception:
-                try:
-                    await channel.send(embed=embed)
-                except Exception:
-                    pass
-    except Exception:
-        pass
-       
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Bot and web server stopped.")
     except Exception as e:
+        # Record unclean shutdown reason and traceback
+        try:
+            tb = traceback.format_exc()
+            mark_unclean_shutdown(tb)
+        except Exception:
+            pass
         print(f"An error occurred during startup: {e}")
