@@ -40,7 +40,7 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.0 beta 3"
+VERSION = "27.0 beta 4"
 DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features."
 
 # GLOBAL VARIABLES FOR PERSISTENT DATA
@@ -1133,25 +1133,51 @@ async def main():
         web_task.cancel()
 
 async def check_and_announce_version():
-    channel = client.get_channel(VERSION_CHANNEL_ID)
-    if not channel:
+    # 1. Channel resolven (cache → fetch fallback)
+    try:
+        channel = client.get_channel(VERSION_CHANNEL_ID)
+        if channel is None:
+            channel = await client.fetch_channel(VERSION_CHANNEL_ID)
+    except Exception as e:
+        print(f"[VERSION] Failed to fetch channel {VERSION_CHANNEL_ID}: {e}")
         return
 
+    # 2. Embed opbouwen
+    desc = DESCRIPTION if DESCRIPTION else "No description provided."
+    embed = discord.Embed(
+        title=f"Version: {VERSION}",
+        description=desc,
+        color=0xA7A7A7
+    )
+    embed.timestamp = discord.utils.utcnow()
+    embed.set_footer(text="The florrOS Project.")
+
+    # 3. Role resolven (betrouwbaar)
+    role_mention = ""
+    allowed_mentions = discord.AllowedMentions.none()
+
     try:
-        desc = DESCRIPTION if DESCRIPTION else "No description provided."
-        embed = discord.Embed(title=f"Version: {VERSION}", description=desc, color=686868)
-        embed.timestamp = discord.utils.utcnow()
-        embed.set_footer(text="The florrOS Project.")
-        mentions = discord.AllowedMentions.none()
-        role_mention = ""
         if channel.guild:
             role = discord.utils.get(channel.guild.roles, name="Version Notify")
             if role:
                 role_mention = role.mention
-                mentions.roles = [discord.Object(id=role.id)]
-        await channel.send(f"{role_mention} A new bot version is available: {VERSION}", embed=embed, allowed_mentions=mentions)
+                allowed_mentions = discord.AllowedMentions(roles=[discord.Object(id=role.id)])
+            else:
+                print("[VERSION] Role 'Version Notify' not found.")
     except Exception as e:
-        print(f"Version announcement failed: {e}")
+        print(f"[VERSION] Failed to resolve role: {e}")
+
+    # 4. Bericht verzenden (geen silent drop)
+    try:
+        await channel.send(
+            content=f"{role_mention} **A new bot version is available:** `{VERSION}`",
+            embed=embed,
+            allowed_mentions=allowed_mentions
+        )
+        print(f"[VERSION] Announcement sent successfully ({VERSION}).")
+    except Exception as e:
+        print(f"[VERSION] Failed to send version announcement: {e}")
+
 
 if __name__ == "__main__":
     try:
