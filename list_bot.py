@@ -34,6 +34,10 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
+VERSION_CHANNEL_ID = 1457390424296521883
+VERSION = "27.0 beta 1"
+DESCRIPTION = ""
+
 # GLOBAL VARIABLES FOR PERSISTENT DATA
 data_list = []
 channel_list_states = {}
@@ -943,6 +947,12 @@ async def on_ready():
 
     await update_all_persistent_list_prompts(force_new=False)
 
+    # Check and announce version if needed
+    try:
+        await check_and_announce_version()
+    except Exception as e:
+        print(f"Version announcement check failed: {e}")
+
 
 @client.event
 async def on_message(m: discord.Message):
@@ -974,6 +984,46 @@ async def web_server():
     port = int(os.environ.get("PORT", 8080))
     site = aiohttp.web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
+
+
+async def check_and_announce_version():
+    """Checks the VERSION_CHANNEL_ID for a previous version announcement.
+    If no previous announcement exists or the version differs from VERSION,
+    sends an @everyone mention with an embed announcing the new version.
+    """
+    try:
+        channel = client.get_channel(VERSION_CHANNEL_ID)
+        if not channel:
+            return
+
+        last_version_found = None
+        try:
+            async for msg in channel.history(limit=50):
+                if msg.author == client.user and msg.embeds:
+                    for emb in msg.embeds:
+                        if emb and emb.title and emb.title.lower().startswith("version"):
+                            parts = emb.title.split(":", 1)
+                            last_version_found = parts[1].strip() if len(parts) > 1 else emb.title.strip()
+                            break
+                if last_version_found:
+                    break
+        except Exception:
+            last_version_found = None
+
+        if last_version_found != VERSION:
+            desc = DESCRIPTION if DESCRIPTION else "No description provided."
+            embed = discord.Embed(title=f"Version: {VERSION}", description=desc, color=0x2F3136)
+            embed.timestamp = discord.utils.utcnow()
+            try:
+                mentions = discord.AllowedMentions(everyone=True)
+                await channel.send(f"@everyone A new bot version is available: {VERSION}", embed=embed, allowed_mentions=mentions)
+            except Exception:
+                try:
+                    await channel.send(embed=embed)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 async def main():
     if not BOT_TOKEN:
