@@ -17,7 +17,7 @@ import aiohttp.web
 from collections import defaultdict
 
 # --- CONFIGURATION ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+BOT_TOKEN = os.environ.get("BOT_TOEN")
 DATA_FILE = "data.json"
 STATE_FILE = "bot_state.json"
 
