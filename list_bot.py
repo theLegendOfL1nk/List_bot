@@ -22,10 +22,10 @@ DATA_FILE = "data.json"
 STATE_FILE = "bot_state.json"
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
-YOUR_USER_ID = 1280968897654292490
+YOUR_USER_ID = 1453329316833398819
 ADMIN_USER_IDS = [
     YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
-    934249510127935529, 504748495933145103, 1095468010564767796, 1318608682971566194
+    934249510127935529, 504748495933145103, 1095468010564767796, 1318608682971566194, 1065159585419247657, 1255285712740421787, 1280968897654292490
 ]
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
@@ -40,8 +40,8 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.0 beta 4"
-DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features."
+VERSION = "27.1 beta 1"
+DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. YAY!!! SIGMA SKIBIDI OHIO TOILET SIX SEVENNNN!!!"
 
 # GLOBAL VARIABLES FOR PERSISTENT DATA
 data_list = []
@@ -956,7 +956,6 @@ async def list_importjson(interaction: discord.Interaction, json_data: str):
 @app_commands.describe(
     item="The name of the unique item.",
     name="The player's name.",
-    cost="The cost count of the item."
 )
 async def list_announce_specific(
     interaction: discord.Interaction, 
@@ -990,21 +989,65 @@ async def list_announce_specific(
 
         # format message exactly like: Item - Name - Cost\n@Role
         try:
-            content = f"{item} - {name} - {cost}\n{role_mention}"
-        except Exception:
-            content = f"{item} - {name} - {cost}"
-
-        try:
-            mentions = discord.AllowedMentions.none()
-            if role_mention:
-                mentions.roles = [discord.Object(id=rid)]
-            await chan.send(content, allowed_mentions=mentions)
+            embed = discord.Embed(
+                title=f"The Unique {item} has been forged by {name}!",
+                description=f"{role_mention} A moderator just announced a forge.",
+                color=0xFF4444
+            )
+            embed.set_footer(text="florrForge v2 beta")
+            await chan.send(embed=embed)
         except Exception:
             pass
-        await asyncio.sleep(0.5)
 
     await interaction.followup.send(
-        f"📢 Specific announcement sent: **{item} - {name} - {cost}**"
+        f"📢 Specific announcement sent: **{item} - {name}**"
+    )
+
+@list_group.command(
+    name="report",
+    description="Announces a specific item update to the configured channels. Remember a false report is bannable!"
+)
+@app_commands.describe(
+    item="The name of the unique item. Please use a capitial letter for each word.",
+    name="The player's name. Please spell it correctly, including capital letters at the right places. For examble: don't say 'Carrotjuice' but 'CarrotJuice'.",
+)
+async def report(
+    interaction: discord.Interaction, 
+    item: str, 
+    name: str, 
+    cost: int
+):
+    await interaction.response.defer(thinking=True)
+
+    # Loop over de UPDATE_NOTIFICATION_CONFIG om in elk kanaal te posten
+    for cfg in UPDATE_NOTIFICATION_CONFIG:
+        cid, fmt, rid = cfg.get("channel_id"), cfg.get("message_format"), cfg.get("role_id_to_ping")
+        if not cid or not fmt or cid == 0:
+            continue
+        chan = client.get_channel(cid)
+        if not chan:
+            continue
+
+        # role mention string
+        role_mention = ""
+        if rid and rid != 0 and chan.guild:
+            role = chan.guild.get_role(rid)
+            role_mention = role.mention if role else ""
+
+        # format message exactly like: Item - Name - Cost\n@Role
+        try:
+            embed = discord.Embed(
+                title=f"The Unique {item} has been forged by {name}!",
+                description=f"{role_mention} A verified user just announced a forge.",
+                color=0xFF4444
+            )
+            embed.set_footer(text="florrForge v2 beta")
+            await chan.send(embed=embed)
+        except Exception:
+            pass
+
+    await interaction.followup.send(
+        f"Announcement sent: **{item} - {name}**. Remember a false report is bannable!"
     )
 
 @list_group.command(
