@@ -61,8 +61,8 @@ intents.messages = True
 # intents.message_content = True # <-- REMOVED: This was causing the "unavailable scope" invite error.
 intents.guilds = True
 intents.members = True # KEEP THIS: This intent is required for slash command context and MUST be enabled in the Developer Portal.
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
+client = commands.Bot(command_prefix="!", intents=intents)
+tree = client.tree
 
 # --- UTILITY FUNCTIONS ---
 
