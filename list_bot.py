@@ -1,3 +1,4 @@
+from ast import Not
 import os
 import discord
 from discord import app_commands
@@ -1024,7 +1025,7 @@ async def list_report(interaction: discord.Interaction):
         ephemeral=True
     )
 
-@bot.tree.command(name="Server codes", description="Show server codes for a specific map.")
+@list_group.command(name="Server codes", description="Show server codes for a specific map.")
 @app_commands.describe(map="Choose a map.")
 @app_commands.choices(map=[
     app_commands.Choice(name="Garden", value=0),
