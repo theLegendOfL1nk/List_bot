@@ -20,6 +20,7 @@ from collections import defaultdict
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 DATA_FILE = "data.json"
 STATE_FILE = "bot_state.json"
+BASE_URL = "https://api.n.m28.io/endpoint/florrio-map-{}-green/findEach/"
 
 TARGET_BOT_ID_FOR_AUTO_UPDATES = 1379160458698690691
 YOUR_USER_ID = 1453329316833398819
@@ -27,6 +28,7 @@ ADMIN_USER_IDS = [
     YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
     934249510127935529, 504748495933145103, 1095468010564767796, 1318608682971566194, 1065159585419247657, 1255285712740421787, 1280968897654292490
 ]
+BANNED_USER_IDS = 708410255033237586
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -37,10 +39,13 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
     1379541947189821460, 1355614867490345192, 1378070555638628383, 1378850404565127229, 1385453089338818651
 ]
 
+#BETA
+REPORT_CHANNEL_ID = 1378070194148217012, 1383418429460971520
+
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.1 beta 1"
+VERSION = "27.1 beta 2"
 DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. YAY!!! SIGMA SKIBIDI OHIO TOILET SIX SEVENNNN!!!"
 
 # GLOBAL VARIABLES FOR PERSISTENT DATA
@@ -65,6 +70,11 @@ client = commands.Bot(command_prefix="!", intents=intents)
 tree = client.tree
 
 # --- UTILITY FUNCTIONS ---
+
+def format_join_code(server_id: str) -> str:
+    # Zorgt dat het ALTIJD exact correct geformatteerd wordt
+    server_id = str(server_id).strip()
+    return f'cp6.forceServerID("{server_id}")'
 
 last_updated_item_details = {"item_val": None, "name_val": None, "cost_val": None}
 view_message_tracker = {}
@@ -994,7 +1004,7 @@ async def list_announce_specific(
                 description=f"{role_mention} A moderator just announced a forge.",
                 color=0xFF4444
             )
-            embed.set_footer(text="florrForge v2 beta")
+            embed.set_footer(text="florrForge 27.1 beta 2")
             await chan.send(embed=embed)
         except Exception:
             pass
@@ -1005,50 +1015,98 @@ async def list_announce_specific(
 
 @list_group.command(
     name="report",
-    description="Announces a specific item update to the configured channels. Remember a false report is bannable!"
+    description="This command is currently unavailable."
+    #description="Announces a specific item update to the configured channels. Remember a false report is bannable!"
 )
-@app_commands.describe(
-    item="The name of the unique item. Please use a capitial letter for each word.",
-    name="The player's name. Please spell it correctly, including capital letters at the right places. For examble: don't say 'Carrotjuice' but 'CarrotJuice'.",
-)
-async def report(
-    interaction: discord.Interaction, 
-    item: str, 
-    name: str, 
-    cost: int
-):
-    await interaction.response.defer(thinking=True)
-
-    # Loop over de UPDATE_NOTIFICATION_CONFIG om in elk kanaal te posten
-    for cfg in UPDATE_NOTIFICATION_CONFIG:
-        cid, fmt, rid = cfg.get("channel_id"), cfg.get("message_format"), cfg.get("role_id_to_ping")
-        if not cid or not fmt or cid == 0:
-            continue
-        chan = client.get_channel(cid)
-        if not chan:
-            continue
-
-        # role mention string
-        role_mention = ""
-        if rid and rid != 0 and chan.guild:
-            role = chan.guild.get_role(rid)
-            role_mention = role.mention if role else ""
-
-        # format message exactly like: Item - Name - Cost\n@Role
-        try:
-            embed = discord.Embed(
-                title=f"The Unique {item} has been forged by {name}!",
-                description=f"{role_mention} A verified user just announced a forge.",
-                color=0xFF4444
-            )
-            embed.set_footer(text="florrForge v2 beta")
-            await chan.send(embed=embed)
-        except Exception:
-            pass
-
-    await interaction.followup.send(
-        f"Announcement sent: **{item} - {name}**. Remember a false report is bannable!"
+async def list_report(interaction: discord.Interaction):
+    await interaction.response.send_message(
+        "❌ This command is currently unavailable becuase of abuse.",
+        ephemeral=True
     )
+
+@bot.tree.command(name="Server codes", description="Show server codes for a specific map.")
+@app_commands.describe(map="Choose a map.")
+@app_commands.choices(map=[
+    app_commands.Choice(name="Garden", value=0),
+    app_commands.Choice(name="Map 1", value=1),
+    app_commands.Choice(name="Map 2", value=2),
+    app_commands.Choice(name="Map 3", value=3),
+    app_commands.Choice(name="Map 4", value=4),
+    app_commands.Choice(name="Map 5", value=5),
+    app_commands.Choice(name="Map 6", value=6),
+    app_commands.Choice(name="Map 7", value=7),
+    app_commands.Choice(name="Map 8", value=8),
+    app_commands.Choice(name="Ant hell", value=9),
+])
+async def green(interaction: discord.Interaction, map: app_commands.Choice[int]):
+    await interaction.response.defer()
+
+    api_url = BASE_URL.format(map.value)
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url, timeout=10) as response:
+                if response.status != 200:
+                    await interaction.followup.send(
+                        f"API error (HTTP {response.status})",
+                        ephemeral=True
+                    )
+                    return
+
+                data = await response.json()
+
+    except Exception as e:
+        await interaction.followup.send(
+            f"API request failed:\n```{e}```",
+            ephemeral=True
+        )
+        return
+
+    if not data:
+        await interaction.followup.send(
+            f"No active servers found for {map.name}.",
+            ephemeral=True
+        )
+        return
+
+    embed = discord.Embed(
+        title=f"🟢 {map.name} Server Codes",
+        color=discord.Color.green()
+    )
+
+    field_count = 0
+
+    for server in data:
+        try:
+            server_id = server.get("id") or server.get("serverId")
+            if not server_id:
+                continue
+
+            join_code = format_join_code(server_id)
+
+            embed.add_field(
+                name=f"Server {server_id}",
+                value=f"```js\n{join_code}\n```",
+                inline=False
+            )
+
+            field_count += 1
+            if field_count >= 25:
+                break
+
+        except Exception:
+            continue
+
+    if field_count == 0:
+        await interaction.followup.send(
+            f"Servers found but no valid IDs for {map.name}.",
+            ephemeral=True
+        )
+        return
+
+    embed.set_footer(text="florrForge 27.1 beta 2")
+
+    await interaction.followup.send(embed=embed)
 
 @list_group.command(
     name="announce_version",
@@ -1213,7 +1271,7 @@ async def check_and_announce_version():
     # 4. Bericht verzenden (geen silent drop)
     try:
         await channel.send(
-            content=f"{role_mention} **A new bot version is available:** `{VERSION}`",
+            content=f"{role_mention} **@everyone A new bot version is available:** `{VERSION}`\n{DESCRIPTION}",
             embed=embed,
             allowed_mentions=allowed_mentions
         )
