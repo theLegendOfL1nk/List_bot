@@ -29,7 +29,7 @@ ADMIN_USER_IDS = [
     YOUR_USER_ID, 1020489591800729610, 1188633780261507102,
     934249510127935529, 504748495933145103, 1095468010564767796, 1318608682971566194, 1065159585419247657, 1255285712740421787, 1280968897654292490
 ]
-BANNED_USER_IDS = 708410255033237586
+BANNED_USER_IDS = [708410255033237586]
 
 AUTO_UPDATE_MESSAGE_REGEX = re.compile(
     r"The Unique\s+([a-zA-Z0-9_\-\s'.]+?)\s+has been forged by\s+([a-zA-Z0-9_\-\s'.]+?)(?:!|$|\s+@)",
@@ -41,13 +41,13 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 ]
 
 #BETA
-REPORT_CHANNEL_ID = 1378070194148217012, 1383418429460971520
+REPORT_CHANNEL_ID = [1378070194148217012, 1383418429460971520]
 
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.1 beta 2"
-DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. YAY!!! SIGMA SKIBIDI OHIO TOILET SIX SEVENNNN!!!"
+VERSION = "27.1 beta 2 bugfix"
+DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. This update provides bugfixes and other improvements."
 
 # GLOBAL VARIABLES FOR PERSISTENT DATA
 data_list = []
@@ -972,7 +972,6 @@ async def list_announce_specific(
     interaction: discord.Interaction, 
     item: str, 
     name: str, 
-    cost: int
 ):
     if not is_admin(interaction.user.id):
         await interaction.response.send_message(
@@ -1025,19 +1024,19 @@ async def list_report(interaction: discord.Interaction):
         ephemeral=True
     )
 
-@list_group.command(name="Server codes", description="Show server codes for a specific map.")
+@list_group.command(name="Server_codes", description="Show server codes for a specific map.")
 @app_commands.describe(map="Choose a map.")
 @app_commands.choices(map=[
     app_commands.Choice(name="Garden", value=0),
-    app_commands.Choice(name="Map 1", value=1),
-    app_commands.Choice(name="Map 2", value=2),
-    app_commands.Choice(name="Map 3", value=3),
-    app_commands.Choice(name="Map 4", value=4),
-    app_commands.Choice(name="Map 5", value=5),
-    app_commands.Choice(name="Map 6", value=6),
-    app_commands.Choice(name="Map 7", value=7),
-    app_commands.Choice(name="Map 8", value=8),
-    app_commands.Choice(name="Ant hell", value=9),
+    app_commands.Choice(name="Desert", value=1),
+    app_commands.Choice(name="Ocean", value=2),
+    app_commands.Choice(name="Jungle", value=3),
+    app_commands.Choice(name="Ant Hell", value=4),
+    app_commands.Choice(name="Hel", value=5),
+    app_commands.Choice(name="Sewers", value=6),
+    app_commands.Choice(name="Factory", value=7),
+    app_commands.Choice(name="Pyramid", value=8),
+    app_commands.Choice(name="Training Grounds", value=9),
 ])
 async def green(interaction: discord.Interaction, map: app_commands.Choice[int]):
     await interaction.response.defer()
