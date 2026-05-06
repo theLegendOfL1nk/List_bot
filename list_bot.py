@@ -47,7 +47,7 @@ REPORT_CHANNEL_ID = [1378070194148217012, 1383418429460971520]
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.1 beta 2 bugfix"
+VERSION = "27.1 beta 3"
 DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. This update provides bugfixes and other improvements."
 
 TRIGGERS = ["manfred", "pehiley", "magic stick", "unique"]
@@ -1033,7 +1033,7 @@ async def list_announce_specific(
                 description=f"{role_mention} A moderator just announced a forge.",
                 color=0xFF4444
             )
-            embed.set_footer(text="florrForge 27.1 beta 2")
+            embed.set_footer(text="florrForge 27.1 beta 3")
             await chan.send(embed=embed)
         except Exception:
             pass
