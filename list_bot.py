@@ -1024,7 +1024,7 @@ async def list_report(interaction: discord.Interaction):
         ephemeral=True
     )
 
-@list_group.command(name="Server_codes", description="Show server codes for a specific map.")
+@list_group.command(name="server_codes", description="Show server codes for a specific map.")
 @app_commands.describe(map="Choose a map.")
 @app_commands.choices(map=[
     app_commands.Choice(name="Garden", value=0),
@@ -1036,7 +1036,7 @@ async def list_report(interaction: discord.Interaction):
     app_commands.Choice(name="Sewers", value=6),
     app_commands.Choice(name="Factory", value=7),
     app_commands.Choice(name="Pyramid", value=8),
-    app_commands.Choice(name="Training Grounds", value=9),
+    app_commands.Choice(name="Ant hell", value=9),
 ])
 async def green(interaction: discord.Interaction, map: app_commands.Choice[int]):
     await interaction.response.defer()
@@ -1047,65 +1047,47 @@ async def green(interaction: discord.Interaction, map: app_commands.Choice[int])
         async with aiohttp.ClientSession() as session:
             async with session.get(api_url, timeout=10) as response:
                 if response.status != 200:
-                    await interaction.followup.send(
-                        f"API error (HTTP {response.status})",
-                        ephemeral=True
-                    )
+                    await interaction.followup.send(f"API error (HTTP {response.status})", ephemeral=True)
                     return
-
                 data = await response.json()
-
     except Exception as e:
-        await interaction.followup.send(
-            f"API request failed:\n```{e}```",
-            ephemeral=True
-        )
+        await interaction.followup.send(f"API request failed:\n```{e}```", ephemeral=True)
         return
 
-    if not data:
-        await interaction.followup.send(
-            f"No active servers found for {map.name}.",
-            ephemeral=True
-        )
+    servers = data.get("servers", {})
+    if not servers:
+        await interaction.followup.send(f"No active servers found for {map.name}.", ephemeral=True)
         return
+
+    # Regio mapping op basis van naam
+    REGION_LABELS = {
+        "miami": "🇺🇸 US",
+        "frankfurt": "🇪🇺 EU",
+        "tokyo": "🌏 AS",
+    }
 
     embed = discord.Embed(
-        title=f"🟢 {map.name} Server Codes",
+        title=f"{map.name} Server Codes",
         color=discord.Color.green()
     )
 
-    field_count = 0
-
-    for server in data:
-        try:
-            server_id = server.get("id") or server.get("serverId")
-            if not server_id:
-                continue
-
-            join_code = format_join_code(server_id)
-
-            embed.add_field(
-                name=f"Server {server_id}",
-                value=f"```js\n{join_code}\n```",
-                inline=False
-            )
-
-            field_count += 1
-            if field_count >= 25:
-                break
-
-        except Exception:
+    for server_key, server_info in servers.items():
+        server_id = server_info.get("id")
+        if not server_id:
             continue
 
-    if field_count == 0:
-        await interaction.followup.send(
-            f"Servers found but no valid IDs for {map.name}.",
-            ephemeral=True
+        # Zoek regio label op basis van sleutelwoord in server_key
+        region = next((label for keyword, label in REGION_LABELS.items() if keyword in server_key), f"🌐 {server_key}")
+
+        join_code = format_join_code(server_id)
+
+        embed.add_field(
+            name=region,
+            value=f"ID: `{server_id}`\n```js\n{join_code}\n```",
+            inline=False
         )
-        return
 
-    embed.set_footer(text="florrForge 27.1 beta 2")
-
+    embed.set_footer(text=f"florrForge {VERSION}")
     await interaction.followup.send(embed=embed)
 
 @list_group.command(
