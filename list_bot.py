@@ -1,5 +1,6 @@
 from ast import Not
 import os
+from random import random
 import discord
 from discord import app_commands
 from discord.ext import commands 
@@ -49,6 +50,31 @@ VERSION_CHANNEL_ID = 1457390424296521883
 VERSION = "27.1 beta 2 bugfix"
 DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. This update provides bugfixes and other improvements."
 
+TRIGGERS = ["manfred", "pehiley", "magic stick", "unique"]
+EMOJI = "💲"
+
+probabilities = {
+    "common": 0.64,
+    "unusual": 0.32,
+    "rare": 0.16,
+    "epic": 0.08,
+    "legendary": 0.04,
+    "mythic": 0.02,
+    "ultra": 0.01
+}
+
+rarity_order = ["common", "unusual", "rare", "epic", "legendary", "mythic", "ultra"]
+
+next_rarity_colors = {
+    "common": 0xFFE65D,
+    "unusual": 0x4D52E3,
+    "rare": 0x861FDE,
+    "epic": 0xDE1F1F,
+    "legendary": 0x1FDBDD,
+    "mythic": 0xFF2B75,
+    "ultra": 0x2BFFA3
+}
+
 # GLOBAL VARIABLES FOR PERSISTENT DATA
 data_list = []
 channel_list_states = {}
@@ -59,7 +85,10 @@ MAX_MESSAGE_LENGTH = 1900
 
 INITIAL_DATA_LIST = []
 # --- END CONFIGURATION ---
-
+def expected_successes(petals: int, chance: float) -> float:
+    if petals < 5:
+        return 0.0
+    return (petals - 2.5 * (1 - chance)) / ((2.5 / chance) + 2.5)
 
 # --- CLIENT SETUP ---
 intents = discord.Intents.default()
@@ -1109,6 +1138,85 @@ async def list_announce_version(interaction: discord.Interaction):
     except Exception as e:
         await interaction.followup.send(f"Version announcement failed: {e}")
 
+@list_group.command(name="craft", description="Calculate crafting averages to the next rarity")
+@app_commands.describe(
+    rarity="Choose the current rarity",
+    petals="Number of petals you want to use"
+)
+@app_commands.choices(rarity=[
+    app_commands.Choice(name="Common", value="common"),
+    app_commands.Choice(name="Unusual", value="unusual"),
+    app_commands.Choice(name="Rare", value="rare"),
+    app_commands.Choice(name="Epic", value="epic"),
+    app_commands.Choice(name="Legendary", value="legendary"),
+    app_commands.Choice(name="Mythic", value="mythic"),
+    app_commands.Choice(name="Ultra", value="ultra")
+])
+async def craft(interaction: discord.Interaction, rarity: app_commands.Choice[str], petals: int):
+    if petals < 0:
+        await interaction.response.send_message("Please enter a positive number of petals.", ephemeral=True)
+        return
+
+    current_rarity = rarity.value
+    index = rarity_order.index(current_rarity)
+    next_rarity = "Super" if index == len(rarity_order) - 1 else rarity_order[index + 1].capitalize()
+    result = expected_successes(petals, probabilities[current_rarity])
+    color = next_rarity_colors[current_rarity]
+
+    embed = discord.Embed(
+        title=f"Crafting Calculator: {current_rarity.capitalize()} → {next_rarity}",
+        color=color
+    )
+    embed.add_field(name="Current Rarity", value=current_rarity.capitalize(), inline=True)
+    embed.add_field(name="Next Rarity", value=next_rarity, inline=True)
+    embed.add_field(name="Petals", value=str(petals), inline=True)
+    embed.add_field(name="Expected Result", value=f"{result:.2f}", inline=False)
+    await interaction.response.send_message(embed=embed)
+
+
+@list_group.command(name="guessgame", description="Guess crafting averages for a random rarity and amount")
+async def guessgame(interaction: discord.Interaction):
+    random_rarity = random.choice(rarity_order)
+    random_petals = random.randint(5, 1000)
+    expected = expected_successes(random_petals, probabilities[random_rarity])
+
+    await interaction.response.send_message(
+        f"🎮 Guess how many petals will craft from **{random_petals} {random_rarity.capitalize()} petals** to the next rarity! Type your guess as a number. You have 30 seconds."
+    )
+
+    def check(m: discord.Message):
+        return m.author == interaction.user and m.channel.id == interaction.channel_id
+
+    try:
+        guess_msg = await client.wait_for("message", check=check, timeout=30.0)
+        guess = float(guess_msg.content)
+        difference = abs(guess - expected)
+        percentage_error = (difference / expected) * 100
+
+        if percentage_error <= 10:
+            result_text = "Amazing! You were within 10% of the correct value!"
+        elif percentage_error <= 25:
+            result_text = "Not bad! You were within 25%."
+        else:
+            result_text = "Too far off, better luck next time."
+
+        next_rarity = "Super" if random_rarity == "ultra" else rarity_order[rarity_order.index(random_rarity) + 1]
+
+        embed = discord.Embed(
+            title="Crafting Guess Game Results",
+            description=f"You guessed: **{guess}**\nActual average: **{expected:.2f}**\n{result_text}",
+            color=next_rarity_colors[random_rarity]
+        )
+        embed.add_field(name="Petals", value=str(random_petals))
+        embed.add_field(name="Rarity", value=random_rarity.capitalize())
+        embed.add_field(name="Next Rarity", value=next_rarity.capitalize())
+        await interaction.followup.send(embed=embed)
+
+    except asyncio.TimeoutError:
+        await interaction.followup.send("Time's up! You didn't answer in time.")
+    except ValueError:
+        await interaction.followup.send("That's not a valid number!")
+
 # --- BOT EVENTS ---
 
 last_on_ready_timestamp = 0
@@ -1172,7 +1280,18 @@ async def on_message(m: discord.Message):
     """
     if m.author == client.user:
         return
+    content = m.content.lower()
+    if any(trigger in content for trigger in TRIGGERS):
+        try:
+            await m.add_reaction(EMOJI)
+        except Exception as e:
+            print("Reaction failed:", e)
 
+    if random.randint(1, 100) == 1:
+        await m.channel.send("Fun fact: Manfred is p2w")
+    # ↑ TOT HIER
+
+    # bestaande code blijft hieronder staan
     # Check for the target bot's automated message
     if m.author.id == TARGET_BOT_ID_FOR_AUTO_UPDATES:
         match = AUTO_UPDATE_MESSAGE_REGEX.search(m.content)
